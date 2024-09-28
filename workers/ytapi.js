@@ -58,13 +58,13 @@ const getPlaylists = async event => {
     nextPageToken = additionalData.nextPageToken;
   }*/
 
-  console.log(streamList);
+  //console.log(streamList);
 
   const allPlaylists = streamList.map(stream => (
       {
-        streams: stream.contentDetails.itemCount,
         gameName: stream.snippet.title,
         tags: stream.snippet.description.split(','),
+        streams: stream.contentDetails.itemCount,
         playlistId: stream.id
       }
     )
@@ -72,13 +72,13 @@ const getPlaylists = async event => {
 
   await Promise.all(allPlaylists.map(async (stream) => {
       const detailPromise = await fetch(`https://youtube.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=${stream.playlistId}&fields=items(contentDetails)&key=${YOUTUBE_API_KEY}`)
-      const coverPromise = await fetch(`https://shouldiplay-api.up.railway.app/hltb/${stream.gameName.toLowerCase()}`)
+      //const coverPromise = await fetch(`https://shouldiplay-api.up.railway.app/hltb/${stream.gameName.toLowerCase()}`)
       const playlistDetail = await detailPromise.json();
-      const playlistCover = await coverPromise.json();
-      stream.gameCover = playlistCover.data[0].game_image;
+      //const playlistCover = await coverPromise.json();
+      //stream.gameCover = playlistCover.data[0].game_image;
       stream.firstVideo = playlistDetail.items[0].contentDetails.videoId;
       stream.dateCompleted = new Date(playlistDetail.items[playlistDetail.items.length-1].contentDetails.videoPublishedAt);
-      //console.log(streams)
+      //console.log(allPlaylists)
     })
   )
 
@@ -86,7 +86,7 @@ const getPlaylists = async event => {
   const allowedOrigin = checkOrigin(event.request)
 
   return new Response(
-    JSON.stringify(streams),
+    JSON.stringify(allPlaylists),
     { headers: { 'Content-type': 'application/json', ...corsHeaders(allowedOrigin) } }
   )
 }
