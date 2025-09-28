@@ -40,9 +40,8 @@
     "deploy": "gh-pages -d build",
     "backend": "node backend/server.js",
     "backend:dev": "nodemon backend/server.js",
-    "migrate": "node backend/migrations/run.js",
-    "chat:convert": "node backend/scripts/chat-convert.js",
-    "chat:add": "node backend/scripts/chat-add.js"
+    "migrate": "node backend/scripts/migrate.js",
+    "migrate:status": "node backend/scripts/migration_status.js",
   },
   "eslintConfig": {
     "extends": [

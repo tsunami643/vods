@@ -9,8 +9,10 @@ const pool = new Pool({
   port: config.DB_PORT,
 });
 
-pool.on('connect', () => {
+pool.on('connect', (client) => {
   console.log('Connected to PostgreSQL database');
+  // Set search path to use vods schema by default
+  client.query('SET search_path TO vods, system, public');
 });
 
 pool.on('error', (err) => {
