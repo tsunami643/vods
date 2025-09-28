@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { convertChatData, validateChatData } = require('../services/chatConverter');
+const { convertChatData, validateChatData } = require('../services/chat_converter');
 const pool = require('../db/connection');
 
 /**

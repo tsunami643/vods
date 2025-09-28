@@ -5,7 +5,7 @@ const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 const config = require('./config');
 const pool = require('./db/connection');
-const loadEndpoints = require('./utils/loadEndpoints');
+const loadEndpoints = require('./utils/load_endpoints');
 
 const app = express();
 
@@ -32,7 +32,7 @@ const swaggerOptions = {
   apis: [
     './backend/server.js',
     './backend/endpoints/**/*.js'
-  ], // Include all endpoint files for Swagger documentation
+  ],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -44,10 +44,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 const endpointsDir = path.join(__dirname, 'endpoints');
 loadEndpoints(app, endpointsDir);
 
-// Test database connection and start server
 async function startServer() {
   try {
-    // Test database connection
     await pool.query('SELECT NOW()');
     console.log('Database connection successful');
     
