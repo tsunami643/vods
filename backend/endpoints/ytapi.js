@@ -22,15 +22,11 @@ const config = require('../config');
 module.exports = (app) => {
   app.get('/ytapi', async (req, res) => {
     try {
-      const origin = req.headers.origin;
-      const allowedOrigin = ytapiService.checkOrigin(origin);
-      
       const allPlaylists = await ytapiService.getYouTubePlaylists(
         config.YOUTUBE_API_KEY,
         config.YOUTUBE_CHANNEL_ID
       );
       
-      res.set(ytapiService.corsHeaders(allowedOrigin));
       res.json(allPlaylists);
     } catch (error) {
       console.error('Error in /ytapi:', error);

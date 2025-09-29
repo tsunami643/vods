@@ -1,5 +1,5 @@
 const pool = require('../db/connection');
-const { convertChatData, validateChatData } = require('../services/chatConverter');
+const { convertChatData, validateChatData } = require('../services/chat_converter');
 
 // TODO: rework this method and update docs
 

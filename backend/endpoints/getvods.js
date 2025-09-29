@@ -1,7 +1,4 @@
 const vodsService = require('../services/vods');
-const config = require('../config');
-
-// TODO: rework this method and update docs
 
 /**
  * @swagger
@@ -18,16 +15,39 @@ const config = require('../config');
  *               type: array
  *               items:
  *                 type: object
+ *                 properties:
+ *                   gameName:
+ *                     type: string
+ *                     description: Name of the game
+ *                   tags:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                     description: Game tags/genres
+ *                   playlistId:
+ *                     type: string
+ *                     description: YouTube playlist ID
+ *                   streams:
+ *                     type: integer
+ *                     description: Number of streams for this game
+ *                   dateCompleted:
+ *                     type: string
+ *                     format: date-time
+ *                     description: When the game was completed
+ *                   firstVideo:
+ *                     type: string
+ *                     description: YouTube video ID of the first video
+ *                   gameCover:
+ *                     type: string
+ *                     description: URL to game cover image
+ *       500:
+ *         description: Internal server error
  */
 module.exports = (app) => {
   app.get('/getvods', async (req, res) => {
     try {
-      const origin = req.headers.origin;
-      const allowedOrigin = vodsService.checkOrigin(origin);
+      const allPlaylists = await vodsService.getVods();
       
-      const allPlaylists = await vodsService.getVods(config.MONGO_DATA_API_KEY);
-      
-      res.set(vodsService.corsHeaders(allowedOrigin));
       res.json(allPlaylists);
     } catch (error) {
       console.error('Error in /getvods:', error);
