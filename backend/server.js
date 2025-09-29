@@ -24,7 +24,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${config.PORT}`,
+        url: `http://localhost:${config.BE_PORT}`,
         description: 'Development server',
       },
     ],
@@ -49,9 +49,9 @@ async function startServer() {
     await pool.query('SELECT NOW()');
     console.log('Database connection successful');
     
-    app.listen(config.PORT, () => {
-      console.log(`Server running on port ${config.PORT}`);
-      console.log(`Swagger documentation available at http://localhost:${config.PORT}/api-docs`);
+    app.listen(config.BE_PORT, () => {
+      console.log(`Server running on port ${config.BE_PORT}`);
+      console.log(`Swagger documentation available at http://localhost:${config.BE_PORT}/api-docs`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

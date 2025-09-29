@@ -13,7 +13,7 @@ const varsMap = {
 };
 
 const optionalVars = {
-  PORT: 3001,
+  BE_PORT: 3001,
   NODE_ENV: 'development'
 };
 
@@ -35,7 +35,7 @@ function validateConfig() {
     }
   });
   
-  config.PORT = parseInt(config.PORT, 10);
+  config.BE_PORT = parseInt(config.BE_PORT, 10);
   config.DB_PORT = parseInt(config.DB_PORT, 10);
   
   if (missing.length > 0) {
@@ -48,7 +48,7 @@ function validateConfig() {
   }
   
   console.log('✅ Configuration loaded successfully');
-  console.log(`🚀 Server will run on port ${config.PORT}`);
+  console.log(`🚀 Server will run on port ${config.BE_PORT}`);
   console.log(`📊 Database: ${config.DB_USER}@${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}`);
   
   return config;
