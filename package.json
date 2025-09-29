@@ -42,6 +42,10 @@
     "backend:dev": "nodemon backend/server.js",
     "migrate": "node backend/scripts/migrate.js",
     "migrate:status": "node backend/scripts/migration_status.js",
+    "import-data": "node backend/scripts/import_data.js",
+    "manage-keys": "node backend/scripts/manage_keys.js",
+    "chat:convert": "node backend/scripts/chat_convert.js",
+    "chat:add": "node backend/scripts/chat_add.js"
   },
   "eslintConfig": {
     "extends": [
