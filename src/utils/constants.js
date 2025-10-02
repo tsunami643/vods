@@ -1,1 +1,1 @@
-export const API_URL = "https://shouldiplay-api.up.railway.app";
+export const API_URL = process.env.REACT_APP_VODS_API_URL || 'http://localhost:3001';

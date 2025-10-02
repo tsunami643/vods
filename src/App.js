@@ -15,7 +15,7 @@ import GameBox from "./components/GameBox";
 import GameBoxSkeleton from "./components/GameBoxSkeleton";
 import Logo from "./components/navbar/Logo";
 import SearchBar from "./components/navbar/SearchBar";
-import { API_URL } from "./utils/constants";
+import { API_URL, } from "./utils/constants";
 import axios from "axios";
 import { allPlaylists } from "./allPlaylists";
 //import initialGamesFunction from "./components/InitialGames";
@@ -110,7 +110,7 @@ const App = () => {
     setSearchResults(allPlaylists);
     setinitialGamesLoad(false);*/
     let gameDatabase;
-    axios.get('https://getvods.tsunami.workers.dev/')
+    axios.get(`${API_URL}/getvods`)
     .then((response) => {
       gameDatabase = response.data;
       setinitialGames(gameDatabase)

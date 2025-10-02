@@ -1,56 +1,94 @@
-addEventListener('fetch', event => {
-  event.respondWith(party(event))
-})
+// Cloudflare Worker for VODs API
+// Uses the exact same functions as the /getvods endpoint
+// Establishes and closes a new PostgreSQL connection for each request
+
+const createDatabaseConnection = async (env) => {
+  const connectionString = env.DATABASE_URL || 
+    `postgresql://${env.DB_USER}:${env.DB_PASSWORD}@${env.DB_HOST}:${env.DB_PORT}/${env.DB_NAME}`;
+  
+  if (!connectionString || connectionString === 'postgresql://:::undefined/undefined') {
+    throw new Error('Database environment variables not configured');
+  }
+
+  const postgres = (await import('postgres')).default;
+  return postgres(connectionString);
+};
 
 const allowedOrigins = [
   'https://getvods.tsunami.workers.dev',
   'http://localhost:3000',
   'https://howdoiplay.com'
-]
+];
 
-// A function that returns a set of CORS headers
 const corsHeaders = origin => ({
   'Access-Control-Allow-Headers': '*',
-  'Access-Control-Allow-Methods': 'GET',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
   'Access-Control-Allow-Origin': origin
-})
+});
 
-const checkOrigin = request => {
-  const origin = request.headers.get("Origin")
-  const foundOrigin = allowedOrigins.find(allowedOrigin => allowedOrigin.includes(origin))
-  return foundOrigin ? foundOrigin : allowedOrigins[0]
+const checkOrigin = (originHeader) => {
+  const foundOrigin = allowedOrigins.find(allowedOrigin => allowedOrigin.includes(originHeader));
+  return foundOrigin ? foundOrigin : allowedOrigins[0];
+};
+
+async function getVods(sql) {
+  try {
+    const result = await sql`
+      SELECT 
+        s.game_name as "gameName",
+        s.tags,
+        p.youtube_id as "playlistId",
+        s.streams as "streams",
+        s.date_completed as "dateCompleted",
+        v.yt_id as "firstVideo",
+        s.game_cover as "gameCover"
+      FROM streams s
+      LEFT JOIN playlists p ON s.playlist_id = p.id
+      LEFT JOIN videos v ON s.first_video = v.id
+      ORDER BY s.date_completed DESC NULLS LAST
+    `;
+    
+    // Same exact data transformation as services/vods.js
+    const allPlaylists = result.map(row => ({
+      gameName: row.gameName,
+      tags: Array.isArray(row.tags) ? row.tags : [],
+      playlistId: row.playlistId,
+      streams: row.streams || 1,
+      dateCompleted: row.dateCompleted ? row.dateCompleted.toISOString() : null,
+      firstVideo: row.firstVideo,
+      gameCover: row.gameCover
+    }));
+    
+    return allPlaylists;
+    
+  } catch (error) {
+    console.error('Error getting VODs:', error);
+    throw error;
+  }
 }
 
-// The URL for the remote third party API you want to fetch from
-// but does not implement CORS
-const API_URL = 'https://data.mongodb-api.com/app/data-xcogu/endpoint/data/v1/action/find';
-
-const party = async event => {
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      'api-key': MONGO_DATA_API_KEY,
-      "Content-Type": "application/json;charset=UTF-8",
-      ...corsHeaders
-    },
-    body: JSON.stringify({
-      "collection": "streams",
-      "database": "vods",
-      "dataSource": "vods",
-      "projection": {
-          "_id": 0
-      }
-    })
-  })
-  let data = await response.json()
-  let allPlaylists = data.documents;
-  allPlaylists.sort(function(a,b){
-  return new Date(b.dateCompleted) - new Date(a.dateCompleted)
-  })
-  console.log(allPlaylists)
-  // Check that the request's origin is a valid origin, allowed to access this API
-  const allowedOrigin = checkOrigin(event.request)
-
-  return new Response(JSON.stringify(allPlaylists),
-    { headers: { 'Content-type': 'application/json', ...corsHeaders(allowedOrigin) } })
-}
+export default {
+  async fetch(request, env) {
+    try {
+      const origin = request.headers.get('origin');
+      const allowedOrigin = checkOrigin(origin);
+      
+      const sql = await createDatabaseConnection(env);
+      
+      const allPlaylists = await getVods(sql);
+      
+      await sql.end();
+      
+      return new Response(JSON.stringify(allPlaylists), {
+        headers: { 'Content-type': 'application/json', ...corsHeaders(allowedOrigin) }
+      });
+      
+    } catch (error) {
+      console.error('Error in getvods worker:', error);
+      return new Response(JSON.stringify({ error: 'Internal server error' }), {
+        status: 500,
+        headers: { 'Content-type': 'application/json' }
+      });
+    }
+  }
+};
