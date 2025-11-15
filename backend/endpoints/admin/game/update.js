@@ -38,6 +38,8 @@ module.exports = (app) => {
   // Update an existing game stream record
   app.put('/admin/game/update/:id', verifyApiKey, async (req, res) => {
     try {
+      console.log('req.body', req.body);
+      console.log('req.params.id', req.params.id);
       const streamId = parseInt(req.params.id);
       const { gameName, playlistId, firstVideo, tags, streams, dateCompleted, gameCover } = req.body;
       

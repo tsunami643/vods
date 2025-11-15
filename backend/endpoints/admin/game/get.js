@@ -108,7 +108,7 @@ module.exports = (app) => {
             s.id as stream_id,
             s.game_name,
             s.tags as stream_tags,
-            s.streams,
+            s.stream_count,
             s.date_completed,
             s.game_cover,
             
@@ -127,7 +127,7 @@ module.exports = (app) => {
             
           FROM streams s
           LEFT JOIN playlists p ON s.playlist_id = p.id
-          LEFT JOIN videos fv ON s.first_video = fv.id
+          LEFT JOIN videos fv ON s.first_video_id = fv.id
           WHERE s.id = $1
         `;
         
@@ -145,7 +145,7 @@ module.exports = (app) => {
           const videosQuery = `
             SELECT DISTINCT v.id, v.yt_id, v.twitch_id, v.name, v.tags, v.created_at
             FROM videos v
-            INNER JOIN streams s2 ON s2.first_video = v.id OR s2.playlist_id IN (
+            INNER JOIN streams s2 ON s2.first_video_id = v.id OR s2.playlist_id IN (
               SELECT p2.id FROM playlists p2 WHERE p2.youtube_id = (
                 SELECT p3.youtube_id FROM playlists p3 WHERE p3.id = s2.playlist_id
               )
