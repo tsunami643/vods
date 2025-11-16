@@ -6,12 +6,14 @@ const path = require('path');
 const config = require('./config');
 const pool = require('./db/connection');
 const loadEndpoints = require('./utils/load_endpoints');
+const { logRequest } = require('./middleware/request_logger');
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(logRequest);
 
 // Swagger configuration
 const swaggerOptions = {

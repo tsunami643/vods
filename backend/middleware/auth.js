@@ -26,20 +26,8 @@ async function verifyApiKey(req, res, next) {
       });
     }
     
-    // Attach API key info to request
+    // Attach API key info to request for logging
     req.apiKeyInfo = result.rows[0];
-    
-    // Log admin request in structured JSON format
-    const logEntry = {
-      time: new Date().toISOString(),
-      path: req.path,
-      method: req.method,
-      accessKeyName: result.rows[0].name,
-      params: req.params,
-      body: req.body
-    };
-    console.log(JSON.stringify(logEntry));
-    
     next();
     
   } catch (error) {
