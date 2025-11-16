@@ -51,38 +51,7 @@ module.exports = (app) => {
   // Get all games with enhanced information
   app.get('/admin/game/get', verifyApiKey, async (req, res) => {
     try {
-      // For now, return the basic games data with enhanced structure
-      // Will implement full enhancement in next iteration
-      const basicGames = await vodsService.getVods();
-      
-      // Transform to admin format with enhanced structure
-      const enhancedGames = basicGames.map((game, index) => ({
-        streamId: game.streamId,
-        gameName: game.gameName,
-        tags: game.tags,
-        streams: game.streams,
-        dateCompleted: game.dateCompleted,
-        gameCover: game.gameCover,
-        
-        // Enhanced playlist information (basic for now)
-        playlist: {
-          internalId: null, // Will be populated with DB queries later
-          youtubeId: game.playlistId,
-          name: null, // Will be populated with DB queries later
-          tags: null, // Will be populated with DB queries later
-          videos: [] // Will be populated with DB queries later
-        },
-        
-        // Enhanced first video information (basic for now)
-        firstVideo: {
-          internalId: null, // Will be populated with DB queries later
-          youtubeId: game.firstVideo,
-          twitchId: null, // Will be populated with DB queries later
-          name: null, // Will be populated with DB queries later
-          tags: null // Will be populated with DB queries later
-        }
-      }));
-      
+      const enhancedGames = await vodsService.getVodsEnhanced();
       res.json(enhancedGames);
     } catch (error) {
       console.error('Error getting games:', error);

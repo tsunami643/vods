@@ -25,6 +25,7 @@ const checkOrigin = (originHeader) => {
 /**
  * Get all VODs from PostgreSQL database
  * Returns data in the same format as the original MongoDB version
+ * playlistId and firstVideo are YouTube IDs, not internal database IDs
  */
 async function getVods(dbConnectionOrConfig) {
   let client;
@@ -33,16 +34,16 @@ async function getVods(dbConnectionOrConfig) {
     // Use the imported connection pool
     client = await pool.connect();
     
-    // Query to get VODs data with internal IDs
+    // Query to get VODs data with YouTube IDs
     const query = `
       SELECT 
         s.id as "streamId",
         s.game_name as "gameName",
         s.tags,
-        p.id as "playlistId",
+        p.youtube_id as "playlistId",
         s.stream_count as "streams",
         s.date_completed as "dateCompleted",
-        v.id as "firstVideo",
+        v.yt_id as "firstVideo",
         s.game_cover as "gameCover"
       FROM streams s
       LEFT JOIN playlists p ON s.playlist_id = p.id
@@ -315,8 +316,89 @@ async function getStreamByPlaylistYoutubeId(playlistYoutubeId) {
   }
 }
 
+/**
+ * Get all VODs with enhanced admin information (includes playlist and video details)
+ * Uses JOINs to fetch everything in a single query
+ */
+async function getVodsEnhanced() {
+  let client;
+  
+  try {
+    client = await pool.connect();
+    
+    // Single query with JOINs to get all the data at once
+    const query = `
+      SELECT 
+        s.id as stream_id,
+        s.game_name,
+        s.tags as stream_tags,
+        s.stream_count,
+        s.date_completed,
+        s.game_cover,
+        
+        -- Playlist information
+        p.id as playlist_internal_id,
+        p.youtube_id as playlist_youtube_id,
+        p.name as playlist_name,
+        p.tags as playlist_tags,
+        
+        -- First video information
+        fv.id as first_video_internal_id,
+        fv.yt_id as first_video_youtube_id,
+        fv.twitch_id as first_video_twitch_id,
+        fv.name as first_video_name,
+        fv.tags as first_video_tags
+        
+      FROM streams s
+      LEFT JOIN playlists p ON s.playlist_id = p.id
+      LEFT JOIN videos fv ON s.first_video_id = fv.id
+      ORDER BY s.date_completed DESC NULLS LAST
+    `;
+    
+    const result = await client.query(query);
+    
+    // Transform the data to enhanced format
+    const enhancedGames = result.rows.map(row => ({
+      streamId: row.stream_id,
+      gameName: row.game_name,
+      tags: Array.isArray(row.stream_tags) ? row.stream_tags : [],
+      streams: row.stream_count || 1,
+      dateCompleted: row.date_completed ? row.date_completed.toISOString() : null,
+      gameCover: row.game_cover,
+      
+      // Enhanced playlist information
+      playlist: row.playlist_internal_id ? {
+        internalId: row.playlist_internal_id,
+        youtubeId: row.playlist_youtube_id,
+        name: row.playlist_name,
+        tags: Array.isArray(row.playlist_tags) ? row.playlist_tags : []
+      } : null,
+      
+      // Enhanced first video information
+      firstVideo: row.first_video_internal_id ? {
+        internalId: row.first_video_internal_id,
+        youtubeId: row.first_video_youtube_id,
+        twitchId: row.first_video_twitch_id,
+        name: row.first_video_name,
+        tags: Array.isArray(row.first_video_tags) ? row.first_video_tags : []
+      } : null
+    }));
+    
+    return enhancedGames;
+    
+  } catch (error) {
+    console.error('Error getting enhanced VODs:', error);
+    throw error;
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
 module.exports = {
   getVods,
+  getVodsEnhanced,
   getVideoById,
   getPlaylistById,
   getStreamByPlaylistYoutubeId,
