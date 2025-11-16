@@ -33,15 +33,16 @@ async function getVods(dbConnectionOrConfig) {
     // Use the imported connection pool
     client = await pool.connect();
     
-    // Query to get VODs data in the original format
+    // Query to get VODs data with internal IDs
     const query = `
       SELECT 
+        s.id as "streamId",
         s.game_name as "gameName",
         s.tags,
-        p.youtube_id as "playlistId",
+        p.id as "playlistId",
         s.stream_count as "streams",
         s.date_completed as "dateCompleted",
-        v.yt_id as "firstVideo",
+        v.id as "firstVideo",
         s.game_cover as "gameCover"
       FROM streams s
       LEFT JOIN playlists p ON s.playlist_id = p.id
@@ -53,6 +54,7 @@ async function getVods(dbConnectionOrConfig) {
     
     // Transform the data to match the original format
     const allPlaylists = result.rows.map(row => ({
+      streamId: row.streamId,
       gameName: row.gameName,
       tags: Array.isArray(row.tags) ? row.tags : [],
       playlistId: row.playlistId,
@@ -213,12 +215,115 @@ async function deleteStream(streamId) {
   }
 }
 
+// read-only helpers for user endpoints
+async function getVideoById(videoId) {
+  const client = await pool.connect();
+  try {
+    // find the stream/playlist that this video belongs to (as first video)
+    const head = await client.query(
+      `SELECT v.id,
+              v.yt_id as "youtubeId",
+              v.twitch_id as "twitchId",
+              v.name,
+              v.tags,
+              v.created_at as "createdAt",
+              s.playlist_id as "playlistId"
+       FROM videos v
+       LEFT JOIN streams s ON s.first_video_id = v.id
+       WHERE v.id = $1
+       LIMIT 1`,
+      [videoId]
+    );
+    const row = head.rows[0];
+    if (!row) return null;
+
+    let order = 1;
+    let total = 1;
+    let prevId = null;
+    let nextId = null;
+    if (row.playlistId) {
+      const listRes = await client.query(
+        `SELECT v.id
+         FROM streams s
+         JOIN videos v ON v.id = s.first_video_id
+         WHERE s.playlist_id = $1
+         ORDER BY v.created_at`,
+        [row.playlistId]
+      );
+      total = listRes.rows.length;
+      const idx = listRes.rows.findIndex(r => r.id === videoId);
+      order = idx + 1 || 1;
+      if (idx > 0) prevId = listRes.rows[idx - 1].id;
+      if (idx >= 0 && idx < listRes.rows.length - 1) nextId = listRes.rows[idx + 1].id;
+    }
+
+    return { ...row, order, total, prevId, nextId };
+  } finally {
+    client.release();
+  }
+}
+
+async function getPlaylistById(playlistId) {
+  const client = await pool.connect();
+  try {
+    const header = await client.query(
+      `SELECT id, youtube_id as "youtubeId", name, tags FROM playlists WHERE id = $1`,
+      [playlistId]
+    );
+    if (header.rowCount === 0) return null;
+
+    const videos = await client.query(
+      `SELECT
+        v.id,
+        v.yt_id as "youtubeId",
+        v.twitch_id as "twitchId",
+        v.name,
+        v.tags,
+        v.created_at as "createdAt",
+        s.playlist_id as "playlistId"
+       FROM videos v ON v.id = s.first_video_id
+       WHERE s.playlist_id = $1
+       ORDER BY v.created_at`,
+      [playlistId]
+    );
+
+    return { ...header.rows[0], videos: videos.rows };
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Find the first stream that uses a given playlist YouTube ID
+ */
+async function getStreamByPlaylistYoutubeId(playlistYoutubeId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `SELECT s.id
+       FROM streams s
+       JOIN playlists p ON s.playlist_id = p.id
+       WHERE p.youtube_id = $1
+       ORDER BY s.created_at
+       LIMIT 1`,
+      [playlistYoutubeId]
+    );
+    
+    return result.rows[0] || null;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getVods,
+  getVideoById,
+  getPlaylistById,
+  getStreamByPlaylistYoutubeId,
   createStream,
   updateStream,
   deleteStream,
   corsHeaders,
   checkOrigin,
   allowedOrigins
-}; 
+};
