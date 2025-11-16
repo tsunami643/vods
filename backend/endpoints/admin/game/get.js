@@ -57,7 +57,7 @@ module.exports = (app) => {
       
       // Transform to admin format with enhanced structure
       const enhancedGames = basicGames.map((game, index) => ({
-        streamId: index + 1,
+        streamId: game.streamId,
         gameName: game.gameName,
         tags: game.tags,
         streams: game.streams,
