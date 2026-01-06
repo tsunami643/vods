@@ -9,9 +9,12 @@ import {
   useTheme,
 } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
-import { NumberParam, useQueryParam, withDefault } from "use-query-params";
+import { Routes, Route, useNavigate } from "react-router-dom";
+
 import Footer from "./components/Footer";
 import GameBox from "./components/GameBox";
+import VideoPage from "./components/VideoPage";
+import PlaylistPage from "./components/PlaylistPage";
 import GameBoxSkeleton from "./components/GameBoxSkeleton";
 import Logo from "./components/navbar/Logo";
 import SearchBar from "./components/navbar/SearchBar";
@@ -90,11 +93,12 @@ function getGames () {axios.get('https://youtube.googleapis.com/youtube/v3/playl
 
 const App = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [loading, setLoading] = useState(Boolean);
   const [searchResults, setSearchResults] = useState([]);
   const [pageCount, setPageCount] = useState(1);
-  const [page, setPage] = useQueryParam("page", withDefault(NumberParam, 1));
+  const [page, setPage] = useState(1);
   const [nextPageToken, setnextPageToken] = useState("");
   const [initialGamesLoad, setinitialGamesLoad] = useState(Boolean);
   const [initialGames, setinitialGames] = useState([]);
@@ -268,6 +272,9 @@ const App = () => {
     //console.log(tagArray);
   }
 
+  const handleOpenVideo = (videoId) => navigate(`/video/${videoId}`);
+  const handleOpenPlaylist = (playlistId) => navigate(`/playlist/${playlistId}`);
+
   const handleChange = (event, value) => {
     setPage(value);
   };
@@ -298,52 +305,52 @@ const App = () => {
       >
         <Toolbar sx={{ justifyContent: "space-between" }}>
           <Logo />
-            {/*{React.createElement("input", {
-                type: "search",
-                name: "search-form",
-                id: "search-form",
-                className: "search-input",
-                placeholder: "Search for...",
-                value: q,
-                onChange: e => setQ(e.target.value) }) /*#__PURE__*/}
-          {/*<SearchBar tags={["Choices Matter"]} />*/}
           <SearchBar handleSearch={handleSearch} tags={tagArray} />
         </Toolbar>
       </AppBar>
-      <Box
-        p={mobile ? "8px 8px 16px 8px" : 2}
-        display={"flex"}
-        flexWrap={"wrap"}
-        justifyContent={"center"}
-        alignContent={"flex-start"}
-        minHeight={{
-          xs: "calc(100vh - 384px)",
-          mobileCard: "calc(100vh - 387px)",
-          sm: "calc(100vh - 369px)",
-        }}
-      >
-        {initialGamesLoad ? (
-          <GameBoxSkeleton />
-        ) : searchResults.length ? (
-          searchResults.map((gameData, index) => {
-            return <GameBox data={gameData} addTag={addTag} key={index}/>;
-          })
-        ) : (
-          <Typography variant="h5" padding={3}>
-            No Results
-          </Typography>
-        )}
-      </Box>
 
-      <Pagination
-        count={pageCount}
-        size={mobile ? "small" : ""}
-        page={page}
-        onChange={handleChange}
-        sx={{ mb: 2, alignSelf: "center" }}
-      />
+      <Routes>
+        <Route path="/video/:id" element={<VideoPage />} />
+        <Route path="/playlist/:id" element={<PlaylistPage />} />
+        <Route path="/" element={
+          <>
+            <Box
+              p={mobile ? "8px 8px 16px 8px" : 2}
+              display={"flex"}
+              flexWrap={"wrap"}
+              justifyContent={"center"}
+              alignContent={"flex-start"}
+              minHeight={{
+                xs: "calc(100vh - 384px)",
+                mobileCard: "calc(100vh - 387px)",
+                sm: "calc(100vh - 369px)",
+              }}
+            >
+              {initialGamesLoad ? (
+                <GameBoxSkeleton />
+              ) : searchResults.length ? (
+                searchResults.map((gameData, index) => (
+                  <GameBox data={gameData} addTag={addTag} key={index} />
+                ))
+              ) : (
+                <Typography variant="h5" padding={3}>
+                  No Results
+                </Typography>
+              )}
+            </Box>
 
-      <Divider flexItem />
+            <Pagination
+              count={pageCount}
+              size={mobile ? "small" : ""}
+              page={page}
+              onChange={handleChange}
+              sx={{ mb: 2, alignSelf: "center" }}
+            />
+
+            <Divider flexItem />
+          </>
+        } />
+      </Routes>
 
       <Footer />
     </Box>

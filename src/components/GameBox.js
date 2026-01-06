@@ -12,11 +12,13 @@ import { useEffect, useState } from "react";
 import useGameBoxStyles from "../styles/useGameBoxStyles";
 import { API_URL } from "../utils/constants";
 import StreamInfo from "./StreamInfo";
+import { useNavigate } from "react-router-dom";
 
 import SearchBar from "./navbar/SearchBar";
 
 const GameBox = ({ data, addTag }) => {
   const [loading, setLoading] = useState(Boolean);
+  const navigate = useNavigate();
   //const [loadCover, setloadCover] = useState(Boolean);
   //const [cover, setCover] = useState();
 
@@ -26,8 +28,11 @@ const GameBox = ({ data, addTag }) => {
     /*addTag(tag);*/
   }
 
+  const openVideo = () => navigate(`/video/${data.firstVideo}`);
+  const openPlaylist = (e) => { e.stopPropagation(); navigate(`/playlist/${data.playlistId}`); };
+
   return (
-    <Card className={classes.card}>
+    <Card className={classes.card} onClick={openVideo} style={{cursor:'pointer'}}>
       <CardMedia
         component="img"
         image={`${data.gameCover}`}
@@ -44,6 +49,7 @@ const GameBox = ({ data, addTag }) => {
             playlistId={data.playlistId}
             firstVideo={data.firstVideo}
             streams={data.streams}
+            onStreamsClick={openPlaylist}
           />
         </Box>
         {/* Tags */}

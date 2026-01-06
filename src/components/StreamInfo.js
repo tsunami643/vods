@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faYoutube } from "@fortawesome/free-brands-svg-icons";
 import useGameBoxStyles from "../styles/useGameBoxStyles";
 
-const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
+const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams, onStreamsClick }) => {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("mobileCard"));
 
@@ -55,6 +55,7 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
         rel="noopener"
         underline="none"
         textAlign="center"
+        onClick={(e) => e.stopPropagation()}
       >
         <Box className={classes.youtube}>
           <FontAwesomeIcon icon={faYoutube} />
@@ -66,6 +67,9 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
       justifyContent={"center"}
       alignItems={"center"}
       flexBasis={"33.3333%"}
+      onClick={onStreamsClick}
+      className={classes.streamsHover}
+      style={{cursor:'pointer'}}
       >
         <Typography
           fontSize={mobile ? 11 : 13}

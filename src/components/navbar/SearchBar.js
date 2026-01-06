@@ -13,7 +13,6 @@ import {
 } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import React, { useCallback, useEffect, useState } from "react";
-import { StringParam, useQueryParam } from "use-query-params";
 
 // Class names from https://stackoverflow.com/questions/58963242/change-border-color-on-material-ui-textfield
 const useStyles = makeStyles((theme) => ({
@@ -40,7 +39,6 @@ const useStyles = makeStyles((theme) => ({
 
 const SearchBar = ({ handleSearch, tags }) => {
   const [searchInput, setSearchInput] = useState("");
-  const [searchParams, setSearchParams] = useQueryParam("search", StringParam);
   const [inputValue, setInputValue] = React.useState("");
   const [selectedItem, setSelectedItem] = React.useState([]);
 

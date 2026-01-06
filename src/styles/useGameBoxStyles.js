@@ -9,6 +9,11 @@ const useGameBoxStyles = makeStyles((theme) => ({
     borderRadius: 10,
     display: "flex",
     boxShadow: "none",
+    transition: "transform 150ms ease, box-shadow 150ms ease",
+    '&:hover': {
+      transform: 'translateY(-3px)',
+      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)'
+    },
     [theme.breakpoints.down("mobileCard")]: {
       margin: 4,
       width: "100%",
@@ -109,6 +114,12 @@ const useGameBoxStyles = makeStyles((theme) => ({
       fontSize: 40,
     },
   },
+  streamsHover: {
+    transition: 'text-shadow 120ms ease, transform 120ms ease',
+    '&:hover': {
+      textShadow: '0 0 5px rgba(220, 220, 255, 0.9)',
+    }
+  }
 }));
 
 export default useGameBoxStyles;
