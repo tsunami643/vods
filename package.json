@@ -47,6 +47,7 @@
     "manage-keys": "node backend/scripts/manage_keys.js",
     "chat:convert": "node backend/scripts/chat_convert.js",
     "chat:add": "node backend/scripts/chat_add.js",
+    "import:playlist": "node backend/scripts/import_playlist.js",
     "yt:fetch-playlist": "node backend/scripts/fetch_playlist_videos.js"
   },
   "eslintConfig": {
