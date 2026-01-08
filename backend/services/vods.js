@@ -217,59 +217,81 @@ async function deleteStream(streamId) {
 }
 
 // read-only helpers for user endpoints
+async function getVideoByIdInternal(client, videoId, isYoutubeId = false) {
+  const whereClause = isYoutubeId ? 'v.yt_id = $1' : 'v.id = $1';
+  const head = await client.query(
+    `SELECT v.id,
+            v.yt_id as "youtubeId",
+            v.twitch_id as "twitchId",
+            v.name,
+            v.sub_title as "subTitle",
+            v.description,
+            v.duration,
+            v.published_at as "publishedAt",
+            v.tags,
+            v.created_at as "createdAt",
+            v.playlist_id as "playlistId",
+            v.playlist_order as "playlistOrder",
+            p.youtube_id as "playlistYoutubeId"
+     FROM videos v
+     LEFT JOIN playlists p ON v.playlist_id = p.id
+     WHERE ${whereClause}
+     LIMIT 1`,
+    [videoId]
+  );
+  const row = head.rows[0];
+  if (!row) return null;
+
+  let order = row.playlistOrder !== null ? row.playlistOrder + 1 : 1;
+  let total = 1;
+  let prevYtId = null;
+  let nextYtId = null;
+  
+  if (row.playlistId) {
+    const listRes = await client.query(
+      `SELECT id, yt_id, playlist_order FROM videos WHERE playlist_id = $1 ORDER BY playlist_order`,
+      [row.playlistId]
+    );
+    total = listRes.rows.length;
+    const idx = listRes.rows.findIndex(r => r.id === row.id);
+    order = idx + 1;
+    if (idx > 0) prevYtId = listRes.rows[idx - 1].yt_id;
+    if (idx >= 0 && idx < listRes.rows.length - 1) nextYtId = listRes.rows[idx + 1].yt_id;
+  }
+
+  return { ...row, order, total, prevYtId, nextYtId };
+}
+
 async function getVideoById(videoId) {
   const client = await pool.connect();
   try {
-    // find the stream/playlist that this video belongs to (as first video)
-    const head = await client.query(
-      `SELECT v.id,
-              v.yt_id as "youtubeId",
-              v.twitch_id as "twitchId",
-              v.name,
-              v.tags,
-              v.created_at as "createdAt",
-              s.playlist_id as "playlistId"
-       FROM videos v
-       LEFT JOIN streams s ON s.first_video_id = v.id
-       WHERE v.id = $1
-       LIMIT 1`,
-      [videoId]
-    );
-    const row = head.rows[0];
-    if (!row) return null;
-
-    let order = 1;
-    let total = 1;
-    let prevId = null;
-    let nextId = null;
-    if (row.playlistId) {
-      const listRes = await client.query(
-        `SELECT v.id
-         FROM streams s
-         JOIN videos v ON v.id = s.first_video_id
-         WHERE s.playlist_id = $1
-         ORDER BY v.created_at`,
-        [row.playlistId]
-      );
-      total = listRes.rows.length;
-      const idx = listRes.rows.findIndex(r => r.id === videoId);
-      order = idx + 1 || 1;
-      if (idx > 0) prevId = listRes.rows[idx - 1].id;
-      if (idx >= 0 && idx < listRes.rows.length - 1) nextId = listRes.rows[idx + 1].id;
-    }
-
-    return { ...row, order, total, prevId, nextId };
+    return await getVideoByIdInternal(client, videoId, false);
   } finally {
     client.release();
   }
 }
 
-async function getPlaylistById(playlistId) {
+async function getVideoByYoutubeId(youtubeId) {
   const client = await pool.connect();
   try {
+    return await getVideoByIdInternal(client, youtubeId, true);
+  } finally {
+    client.release();
+  }
+}
+
+async function getPlaylistById(playlistIdOrYoutubeId) {
+  const client = await pool.connect();
+  try {
+    const isNumeric = /^\d+$/.test(String(playlistIdOrYoutubeId));
+    const whereClause = isNumeric ? 'p.id = $1' : 'p.youtube_id = $1';
+    
     const header = await client.query(
-      `SELECT id, youtube_id as "youtubeId", name, tags FROM playlists WHERE id = $1`,
-      [playlistId]
+      `SELECT p.id, p.youtube_id as "youtubeId", p.name, p.tags, s.game_cover as "gameCover"
+       FROM playlists p
+       LEFT JOIN streams s ON s.playlist_id = p.id
+       WHERE ${whereClause}`,
+      [playlistIdOrYoutubeId]
     );
     if (header.rowCount === 0) return null;
 
@@ -279,13 +301,18 @@ async function getPlaylistById(playlistId) {
         v.yt_id as "youtubeId",
         v.twitch_id as "twitchId",
         v.name,
+        v.sub_title as "subTitle",
+        v.description,
+        v.duration,
+        v.published_at as "publishedAt",
         v.tags,
         v.created_at as "createdAt",
-        s.playlist_id as "playlistId"
-       FROM videos v ON v.id = s.first_video_id
-       WHERE s.playlist_id = $1
-       ORDER BY v.created_at`,
-      [playlistId]
+        v.playlist_id as "playlistId",
+        v.playlist_order as "playlistOrder"
+       FROM videos v
+       WHERE v.playlist_id = $1
+       ORDER BY v.playlist_order`,
+      [header.rows[0].id]
     );
 
     return { ...header.rows[0], videos: videos.rows };
@@ -400,6 +427,7 @@ module.exports = {
   getVods,
   getVodsEnhanced,
   getVideoById,
+  getVideoByYoutubeId,
   getPlaylistById,
   getStreamByPlaylistYoutubeId,
   createStream,
