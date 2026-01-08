@@ -30,6 +30,12 @@ const { verifyApiKey } = require('../../../middleware/auth');
  *               name:
  *                 type: string
  *                 description: Video name
+ *               sub_title:
+ *                 type: string
+ *                 description: Stream title (sub-title)
+ *               description:
+ *                 type: string
+ *                 description: Video description
  *               tags:
  *                 type: array
  *                 items:
@@ -48,7 +54,7 @@ module.exports = (app) => {
   app.put('/admin/video/update/:id', verifyApiKey, async (req, res) => {
     try {
       const videoId = parseInt(req.params.id);
-      const { yt_id, twitch_id, name, tags } = req.body;
+      const { yt_id, twitch_id, name, sub_title, description, tags } = req.body;
       
       if (isNaN(videoId)) {
         return res.status(400).json({ error: 'Invalid video ID' });
@@ -75,6 +81,16 @@ module.exports = (app) => {
         if (name !== undefined) {
           updateFields.push(`name = $${paramCount++}`);
           values.push(name);
+        }
+        
+        if (sub_title !== undefined) {
+          updateFields.push(`sub_title = $${paramCount++}`);
+          values.push(sub_title);
+        }
+        
+        if (description !== undefined) {
+          updateFields.push(`description = $${paramCount++}`);
+          values.push(description);
         }
         
         if (tags !== undefined) {

@@ -25,6 +25,12 @@ const { verifyApiKey } = require('../../../middleware/auth');
  *               name:
  *                 type: string
  *                 description: Video name
+ *               sub_title:
+ *                 type: string
+ *                 description: Stream title (sub-title)
+ *               description:
+ *                 type: string
+ *                 description: Video description
  *               tags:
  *                 type: array
  *                 items:
@@ -42,7 +48,7 @@ const { verifyApiKey } = require('../../../middleware/auth');
 module.exports = (app) => {
   app.post('/admin/video/create', verifyApiKey, async (req, res) => {
     try {
-      const { yt_id, twitch_id, name, tags } = req.body;
+      const { yt_id, twitch_id, name, sub_title, description, tags } = req.body;
       
       // Validate required fields
       if (!yt_id) {
@@ -55,8 +61,8 @@ module.exports = (app) => {
       
       try {
         const result = await client.query(
-          'INSERT INTO videos (yt_id, twitch_id, name, tags) VALUES ($1, $2, $3, $4) RETURNING *',
-          [yt_id, twitch_id || null, name || null, JSON.stringify(tags || [])]
+          'INSERT INTO videos (yt_id, twitch_id, name, sub_title, description, tags) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+          [yt_id, twitch_id || null, name || null, sub_title || null, description || null, JSON.stringify(tags || [])]
         );
         
         res.status(201).json({
