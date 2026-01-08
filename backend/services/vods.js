@@ -287,7 +287,8 @@ async function getPlaylistById(playlistIdOrYoutubeId) {
     const whereClause = isNumeric ? 'p.id = $1' : 'p.youtube_id = $1';
     
     const header = await client.query(
-      `SELECT p.id, p.youtube_id as "youtubeId", p.name, p.tags, s.game_cover as "gameCover"
+      `SELECT p.id, p.youtube_id as "youtubeId", p.name, p.tags, 
+              s.game_cover as "gameCover", s.id as "streamId", s.first_video_id as "firstVideoId"
        FROM playlists p
        LEFT JOIN streams s ON s.playlist_id = p.id
        WHERE ${whereClause}`,
@@ -295,7 +296,11 @@ async function getPlaylistById(playlistIdOrYoutubeId) {
     );
     if (header.rowCount === 0) return null;
 
-    const videos = await client.query(
+    const playlistId = header.rows[0].id;
+    const streamId = header.rows[0].streamId;
+    const firstVideoId = header.rows[0].firstVideoId;
+
+    let videos = await client.query(
       `SELECT
         v.id,
         v.yt_id as "youtubeId",
@@ -312,10 +317,35 @@ async function getPlaylistById(playlistIdOrYoutubeId) {
        FROM videos v
        WHERE v.playlist_id = $1
        ORDER BY v.playlist_order`,
-      [header.rows[0].id]
+      [playlistId]
     );
 
-    return { ...header.rows[0], videos: videos.rows };
+    // If no videos found and there's a stream with first_video_id, 
+    // get the first_video as an orphaned video for this stream
+    if (videos.rows.length === 0 && firstVideoId) {
+      videos = await client.query(
+        `SELECT
+          v.id,
+          v.yt_id as "youtubeId",
+          v.twitch_id as "twitchId",
+          v.name,
+          v.sub_title as "subTitle",
+          v.description,
+          v.duration,
+          v.published_at as "publishedAt",
+          v.tags,
+          v.created_at as "createdAt",
+          v.playlist_id as "playlistId",
+          v.playlist_order as "playlistOrder"
+         FROM videos v
+         WHERE v.id = $1`,
+        [firstVideoId]
+      );
+    }
+
+    const { streamId: _, firstVideoId: __, ...headerData } = header.rows[0];
+    
+    return { ...headerData, videos: videos.rows };
   } finally {
     client.release();
   }
@@ -352,8 +382,7 @@ async function getVodsEnhanced() {
   
   try {
     client = await pool.connect();
-    
-    // Single query with JOINs to get all the data at once
+
     const query = `
       SELECT 
         s.id as stream_id,
@@ -384,7 +413,6 @@ async function getVodsEnhanced() {
     
     const result = await client.query(query);
     
-    // Transform the data to enhanced format
     const enhancedGames = result.rows.map(row => ({
       streamId: row.stream_id,
       gameName: row.game_name,
@@ -393,7 +421,6 @@ async function getVodsEnhanced() {
       dateCompleted: row.date_completed ? row.date_completed.toISOString() : null,
       gameCover: row.game_cover,
       
-      // Enhanced playlist information
       playlist: row.playlist_internal_id ? {
         internalId: row.playlist_internal_id,
         youtubeId: row.playlist_youtube_id,
@@ -401,7 +428,6 @@ async function getVodsEnhanced() {
         tags: Array.isArray(row.playlist_tags) ? row.playlist_tags : []
       } : null,
       
-      // Enhanced first video information
       firstVideo: row.first_video_internal_id ? {
         internalId: row.first_video_internal_id,
         youtubeId: row.first_video_youtube_id,
