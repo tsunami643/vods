@@ -3,7 +3,6 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-// history is managed by BrowserRouter with React Router v6
 
 const theme = createTheme({
   palette: {
@@ -49,7 +48,7 @@ const theme = createTheme({
 ReactDOM.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
-      <BrowserRouter>
+      <BrowserRouter basename={process.env.PUBLIC_URL}>
         <CssBaseline />
         <App />
       </BrowserRouter>

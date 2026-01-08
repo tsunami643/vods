@@ -9,7 +9,7 @@ import {
   useTheme,
 } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 
 import Footer from "./components/Footer";
 import GameBox from "./components/GameBox";
@@ -18,283 +18,99 @@ import PlaylistPage from "./components/PlaylistPage";
 import GameBoxSkeleton from "./components/GameBoxSkeleton";
 import Logo from "./components/navbar/Logo";
 import SearchBar from "./components/navbar/SearchBar";
-import { API_URL, } from "./utils/constants";
+import { API_URL } from "./utils/constants";
 import axios from "axios";
-import { allPlaylists } from "./allPlaylists";
-//import initialGamesFunction from "./components/InitialGames";
-
-//const YOUTUBE_API_KEY = "REDACTED";
-//const YOUTUBE_CHANNEL_ID = "UCWPpKM7gNLRNUuA7V00Xi4g";
-
-//var games = {"test": "test"};
-/*
-function getGames () {axios.get('https://youtube.googleapis.com/youtube/v3/playlists', {
-  params: {
-    part: "snippet,contentDetails",
-    channelId : YOUTUBE_CHANNEL_ID,
-    fields: "nextPageToken,items(id,snippet(title,description),contentDetails(itemCount))",
-    maxResults: 20,
-    key: YOUTUBE_API_KEY,
-    },
-  })
-  .then((response) => {
-    //console.log(response);
-    var games = [];
-    //If there are more than 20 results, get nextPageToken for another request
-    if (response.data.nextPageToken){console.log(response.data.nextPageToken)}
-    //Go through each playlist and parse info
-    response.data.items.map(elem => {
-      var gameName = elem.snippet.title;
-      var tags = elem.snippet.description.split(',');
-      var streams = elem.contentDetails.itemCount;
-      var playlistId = elem.id;
-      //Get cover image from shouldiplay API
-      var gameCover = axios.get(`${API_URL}/hltb/${gameName.toLowerCase()}`)
-      .then((result) => {
-        return result.data.data[0].game_image;
-        //console.log(`https://howlongtobeat.com/games/`+gameCover+`?width=160`)
-      })
-      .catch((error) => {
-        return "no_boxart.png";
-      })
-      //Go through each video in playlist and parse info
-      axios.get(
-        'https://youtube.googleapis.com/youtube/v3/playlistItems', {
-          params: {
-            part: "contentDetails",
-            playlistId: playlistId,
-            fields: "items(contentDetails)",
-            maxResults: 50,
-            key: YOUTUBE_API_KEY,
-            },
-        })
-      .then((response) => {
-        var dateCompleted = new Date(response.data.items[response.data.items.length-1].contentDetails.videoPublishedAt);
-        //dateCompleted = dateCompleted.toDateString().slice(4);
-        var firstVideo = response.data.items[0].contentDetails.videoId;
-        //var videoLink = "https://www.youtube.com/watch?v=" + firstVideo + "&list=" + playlistId;
-        games.push({gameName, dateCompleted, streams, tags, playlistId, firstVideo, gameCover});
-        const sortByDate = (data) =>
-          data.sort (({dateCompleted: a}, {dateCompleted: b}) => a > b ? -1 : a < b ? 1 : 0)
-        sortByDate(games);
-        console.log(games);
-        return games;
-      })
-    })
-  })
-  .catch((error) => {
-    console.log("it broke")
-  })
-}
-*/
-//getGames();
-
-//console.log(InitialGames());
 
 const App = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const location = useLocation();
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [loading, setLoading] = useState(Boolean);
+  const isVideoPage = location.pathname.startsWith('/video/');
+  const isHomePage = location.pathname === '/';
   const [searchResults, setSearchResults] = useState([]);
-  const [pageCount, setPageCount] = useState(1);
+  const [pageCount] = useState(1);
   const [page, setPage] = useState(1);
-  const [nextPageToken, setnextPageToken] = useState("");
   const [initialGamesLoad, setinitialGamesLoad] = useState(Boolean);
   const [initialGames, setinitialGames] = useState([]);
-  const [q, setQ] = useState("");
-  const [searchParam] = useState(["gameName"]);
-  const [tagArray, setTagArray] = useState([])
+  const [searchInput, setSearchInput] = useState("");
+  const [tagArray, setTagArray] = useState([]);
+  const [searchKey, setSearchKey] = useState(0);
 
   useEffect(() => {
-    document.title = "tsunami's twitch vods"
+    if (!isHomePage) {
+      setSearchInput("");
+      setTagArray([]);
+      setSearchKey((k) => k + 1);
+    }
+  }, [isHomePage]);
+
+  useEffect(() => {
+    document.title = "tsunami's twitch vods";
     setinitialGamesLoad(true);
     setinitialGames([]);
-    /*setinitialGames(allPlaylists);
-    setSearchResults(allPlaylists);
-    setinitialGamesLoad(false);*/
-    let gameDatabase;
+    
     axios.get(`${API_URL}/getvods`)
-    .then((response) => {
-      gameDatabase = response.data;
-      setinitialGames(gameDatabase)
-      setSearchResults(gameDatabase)
-      setinitialGamesLoad(false)
-    })
-    //Get all channel playlists (capped by maxResults)
-    /*axios.get('https://youtube.googleapis.com/youtube/v3/playlists', {
-        params: {
-        part: "snippet,contentDetails",
-        channelId : process.env.REACT_APP_YOUTUBE_CHANNEL_ID,
-        fields: "nextPageToken,items(id,snippet(title,description),contentDetails(itemCount))",
-        maxResults: 50,
-        key: process.env.REACT_APP_YOUTUBE_API_KEY,
-        //pageToken: "CDIQAA",
-        },
-    })
-    .then((response) => {
-        if (response.data.nextPageToken){setnextPageToken(response.data.nextPageToken);}
-        //console.log(response.data.nextPageToken);
-        let streamList = response.data.items;
-        //console.log(streamList)
-        let nextPageToken = response.data.nextPageToken;
-        const promises = [];
-        
-        /*while(nextPageToken){
-          axios.get('https://youtube.googleapis.com/youtube/v3/playlists', {
-            params: {
-            part: "snippet,contentDetails",
-            channelId : process.env.REACT_APP_YOUTUBE_CHANNEL_ID,
-            fields: "nextPageToken,items(id,snippet(title,description),contentDetails(itemCount))",
-            maxResults: 50,
-            key: process.env.REACT_APP_YOUTUBE_API_KEY,
-            pageToken: nextPageToken,
-            },
-          })
-          .then((response) => {
-            let additionalStreamList = response.data.items;
-            let streamList = streamList.concat(additionalStreamList);
-            nextPageToken = additionalStreamList.data.nextPageToken;
-          })
-        }*/
-/*
-        const allPlaylists = streamList.map(stream => (
-          {
-            gameName: stream.snippet.title,
-            tags: stream.snippet.description.split(','),
-            playlistId: stream.id,
-            streams: stream.contentDetails.itemCount
-          }
-        )
-      )
-        //Go through all playlists
-        allPlaylists.forEach(elem => {
-          /*elem.gameName = elem.snippet.title;
-          elem.tags = elem.snippet.description.split(',');
-          elem.streams = elem.contentDetails.itemCount;
-          elem.playlistId = elem.id;*/
-/*          
-          //Get individual playlist data 
-          promises.push(axios.get(
-            'https://youtube.googleapis.com/youtube/v3/playlistItems', {
-              params: {
-                part: "contentDetails",
-                playlistId: elem.playlistId,
-                fields: "items(contentDetails)",
-                maxResults: 50,
-                key: process.env.REACT_APP_YOUTUBE_API_KEY,
-                },
-            })
-          .then((response) => {
-            elem.dateCompleted = new Date(response.data.items[response.data.items.length-1].contentDetails.videoPublishedAt);
-            elem.firstVideo = response.data.items[0].contentDetails.videoId;
-          }))
-        })
-        
-        //Get cover image from shouldiplay API
-        allPlaylists.forEach(elem => {
-          promises.push(axios.get(`${API_URL}/hltb/${elem.gameName.toLowerCase()}`)
-          .then((result) => {
-            elem.gameCover = result.data.data[0].game_image;
-            //console.log(`https://howlongtobeat.com/games/`+gameCover+`?width=160`)
-          })
-          .catch((error) => {
-            elem.gameCover = "no_boxart.png";
-          })
-          )
-        })
-
-        //Wait for all API responses, then sort games by date
-        Promise.allSettled(promises).then(() => {
-          const sortByDate = (data) =>
-            data.sort (({dateCompleted: a}, {dateCompleted: b}) => a > b ? -1 : a < b ? 1 : 0)
-          setinitialGames(sortByDate(allPlaylists))
-          setinitialGamesLoad(false)
-        })
-    });*/
+      .then((response) => {
+        const gameDatabase = response.data;
+        setinitialGames(gameDatabase);
+        setSearchResults(gameDatabase);
+        setinitialGamesLoad(false);
+      });
   }, []);
 
-  /*useEffect(() => {
-    //setSearchResults(initialGames)
-    console.log(`Next Page Token: ${nextPageToken}`)
-    console.log(initialGames)
-  }, [initialGamesLoad])*/
+  const filterGames = useCallback(() => {
+    let results = initialGames;
 
-  // https://github.com/pbeshai/use-query-params/blob/master/examples/no-router/src/App.js
-  // const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
-  // useEffect(() => {
-  //   // listen for changes to the URL and force the app to re-render
-  //   history.listen(() => {
-  //     forceUpdate();
-  //   });
-  // }, []);
-
-  /*const handleSearch = useCallback(
-    (value) => {
-      setLoading(true);
-      setSearchResults([]);
-      fetch(`${API_URL}/hltb/${value.toLowerCase()}?page=${page}`)
-        .then((response) => response.json())
-        .then((result) => {
-          setLoading(false);
-          setSearchResults(result.data);
-          setPageCount(result.pageTotal);
-        });
-      window.gtag("event", "search", {
-        search_term: value.toLowerCase(),
-      });
-    },
-    [page]
-  );*/
-
-  const handleSearch = useCallback(
-    (value) => {
-      let results = initialGames.filter((item) => {
-        return searchParam.some((newItem) => {
-            return (
-                item[newItem]
-                    .toString()
-                    .toLowerCase()
-                    .indexOf(value.toLowerCase()) > -1
-              );
-          });
-      });
-      //console.log(results)
-      setSearchResults(results)
-    }, [initialGamesLoad]);
-  
-  function addTag(tag) {
-    //console.log(`you clicked ${tag}`);
-    if(tagArray.includes(tag) === false){
-      tagArray.push(tag);
-      setTagArray(tagArray);
+    if (searchInput) {
+      results = results.filter((item) =>
+        item.gameName.toString().toLowerCase().includes(searchInput.toLowerCase())
+      );
     }
-    //console.log(tagArray);
-  }
 
-  const handleOpenVideo = (videoId) => navigate(`/video/${videoId}`);
-  const handleOpenPlaylist = (playlistId) => navigate(`/playlist/${playlistId}`);
+    if (tagArray.length > 0) {
+      results = results.filter((item) =>
+        tagArray.every((tag) => item.tags?.includes(tag))
+      );
+    }
+
+    setSearchResults(results);
+  }, [initialGames, searchInput, tagArray]);
+
+  useEffect(() => {
+    if (!initialGamesLoad) {
+      filterGames();
+    }
+  }, [filterGames, initialGamesLoad]);
+
+  const handleSearch = useCallback((value) => {
+    setSearchInput(value);
+  }, []);
+
+  const addTag = useCallback((tag) => {
+    setTagArray((prev) => {
+      if (prev.includes(tag)) return prev;
+      return [...prev, tag];
+    });
+  }, []);
+
+  const removeTag = useCallback((tag) => {
+    setTagArray((prev) => prev.filter((t) => t !== tag));
+  }, []);
 
   const handleChange = (event, value) => {
     setPage(value);
   };
 
-  //GAME SEARCH FUNCTION AND INITIAL LOADER
-  // function search(initialGames) {
-  //   return initialGames.filter((item) => {
-  //       return searchParam.some((newItem) => {
-  //           return (
-  //               item[newItem]
-  //                   .toString()
-  //                   .toLowerCase()
-  //                   .indexOf(q.toLowerCase()) > -1
-  //           );
-  //       });
-  //   });
-  // }
+  if (isVideoPage) {
+    return (
+      <Routes>
+        <Route path="/video/:id" element={<VideoPage />} />
+      </Routes>
+    );
+  }
 
   return (
-    <Box display={"flex"} flexDirection={"column"}>
+    <Box display={"flex"} flexDirection={"column"} minHeight="100vh">
       <AppBar
         position="sticky"
         sx={{
@@ -305,52 +121,53 @@ const App = () => {
       >
         <Toolbar sx={{ justifyContent: "space-between" }}>
           <Logo />
-          <SearchBar handleSearch={handleSearch} tags={tagArray} />
+          <SearchBar key={searchKey} handleSearch={handleSearch} tags={tagArray} onRemoveTag={removeTag} />
         </Toolbar>
       </AppBar>
 
-      <Routes>
-        <Route path="/video/:id" element={<VideoPage />} />
-        <Route path="/playlist/:id" element={<PlaylistPage />} />
-        <Route path="/" element={
-          <>
-            <Box
-              p={mobile ? "8px 8px 16px 8px" : 2}
-              display={"flex"}
-              flexWrap={"wrap"}
-              justifyContent={"center"}
-              alignContent={"flex-start"}
-              minHeight={{
-                xs: "calc(100vh - 384px)",
-                mobileCard: "calc(100vh - 387px)",
-                sm: "calc(100vh - 369px)",
-              }}
-            >
-              {initialGamesLoad ? (
-                <GameBoxSkeleton />
-              ) : searchResults.length ? (
-                searchResults.map((gameData, index) => (
-                  <GameBox data={gameData} addTag={addTag} key={index} />
-                ))
-              ) : (
-                <Typography variant="h5" padding={3}>
-                  No Results
-                </Typography>
-              )}
-            </Box>
+      <Box flex={1} display="flex" flexDirection="column">
+        <Routes>
+          <Route path="/playlist/:id" element={<PlaylistPage />} />
+          <Route path="/" element={
+            <>
+              <Box
+                p={mobile ? "8px 8px 16px 8px" : 2}
+                display={"flex"}
+                flexWrap={"wrap"}
+                justifyContent={"center"}
+                alignContent={"flex-start"}
+                minHeight={{
+                  xs: "calc(100vh - 384px)",
+                  mobileCard: "calc(100vh - 387px)",
+                  sm: "calc(100vh - 369px)",
+                }}
+              >
+                {initialGamesLoad ? (
+                  <GameBoxSkeleton />
+                ) : searchResults.length ? (
+                  searchResults.map((gameData, index) => (
+                    <GameBox data={gameData} addTag={addTag} key={index} />
+                  ))
+                ) : (
+                  <Typography variant="h5" padding={3}>
+                    No Results
+                  </Typography>
+                )}
+              </Box>
 
-            <Pagination
-              count={pageCount}
-              size={mobile ? "small" : ""}
-              page={page}
-              onChange={handleChange}
-              sx={{ mb: 2, alignSelf: "center" }}
-            />
+              <Pagination
+                count={pageCount}
+                size={mobile ? "small" : ""}
+                page={page}
+                onChange={handleChange}
+                sx={{ mb: 2, alignSelf: "center" }}
+              />
 
-            <Divider flexItem />
-          </>
-        } />
-      </Routes>
+              <Divider flexItem />
+            </>
+          } />
+        </Routes>
+      </Box>
 
       <Footer />
     </Box>

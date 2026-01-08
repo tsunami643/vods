@@ -12,9 +12,8 @@ import {
   useTheme,
 } from "@mui/material";
 import { makeStyles } from "@mui/styles";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
-// Class names from https://stackoverflow.com/questions/58963242/change-border-color-on-material-ui-textfield
 const useStyles = makeStyles((theme) => ({
   form: {
     margin: "16px 0px 16px 16px",
@@ -37,51 +36,23 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const SearchBar = ({ handleSearch, tags }) => {
+const SearchBar = ({ handleSearch, tags, onRemoveTag }) => {
   const [searchInput, setSearchInput] = useState("");
-  const [inputValue, setInputValue] = React.useState("");
-  const [selectedItem, setSelectedItem] = React.useState([]);
 
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("mobileCard"));
 
   const classes = useStyles();
 
-  // Displays initial set of games on page load and whenever search is performed
-  // useEffect(() => {
-  //   searchParams ? handleSearch(searchParams) : handleSearch("");
-  //   document.title = searchParams
-  //     ? `${searchParams} - Should I Play This?`
-  //     : "Should I Play This?";
-  // }, [searchParams, handleSearch]);
-
-  const handleClick = tag => () => {
-    console.log(`you clicked: ${tag}`);
-    //SearchBar.sup(tag);
-  }
-
-  const handleDelete = tag => () => {
-    console.log(`you tried to delete: ${tag}`);
-    tags = tags.filter(item => item !== tag);
-    console.log(tags);
+  const handleDelete = (tag) => () => {
+    if (onRemoveTag) {
+      onRemoveTag(tag);
+    }
   };
-
-  const handleKeyDown = () => {
-    //if (event.key === "Enter") {
-      //setPage(1);
-      handleSearch(searchInput);
-    //}
-  };
-
-  /*const tagArray = (tag) => {
-    console.log(`they clicked ${tag}`)
-  };*/
 
   useEffect(() => {
-    //console.log(`Search input is: ${searchInput}`)
-    handleSearch(searchInput)
-    //console.log(initialGames)
-  }, [searchInput])
+    handleSearch(searchInput);
+  }, [searchInput, handleSearch]);
 
   return (
     <FormControl variant="outlined" className={classes.form}>
@@ -90,32 +61,36 @@ const SearchBar = ({ handleSearch, tags }) => {
         sx={{
           color: "rgba(220, 220, 255, .7)",
           fontSize: mobile ? 14 : "1rem",
-          lineHeight: mobile ? "1.6em" : "1.4375em"
+          lineHeight: mobile ? "1.6em" : "1.4375em",
         }}
       >
         Search for games...
       </InputLabel>
       <OutlinedInput
-        startAdornment=
-          {<Stack direction="row" spacing={1} marginRight="8px">
-            {tags.map((tag) => {
-                return (<Chip label={tag} onClick={handleClick(tag)} onDelete={handleDelete(tag)} size="small" key={tag}/>);
+        startAdornment={
+          tags.length > 0 ? (
+            <Stack direction="row" spacing={1} marginRight="8px">
+              {tags.map((tag) => {
+                return (
+                  <Chip
+                    label={tag}
+                    onDelete={handleDelete(tag)}
+                    size="small"
+                    key={tag}
+                  />
+                );
               })}
-          </Stack>}
+            </Stack>
+          ) : null
+        }
         id="Searchbar"
         type="search"
         sx={{ borderRadius: "60px", marginLeft: -1, paddingRight: 3 }}
-        //defaultValue={searchParams}
-        //onKeyDown={handleKeyDown}
         onChange={(e) => setSearchInput(e.target.value)}
         label="Search for games..."
         endAdornment={
           <InputAdornment position="end">
-            <IconButton
-              aria-label="search for games"
-              edge="end"
-              onClick={handleClick}
-            >
+            <IconButton aria-label="search for games" edge="end">
               <FontAwesomeIcon icon={faSearch} color="#C8D4FF" />
             </IconButton>
           </InputAdornment>
