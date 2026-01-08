@@ -83,40 +83,54 @@ export default function VideoPage() {
   const infoTouchRef = useRef({ time: 0, x: 0, y: 0 });
   const playlistVideosRef = useRef([]);
 
+  const lastInitializedIdRef = useRef(null);
+  
   useEffect(() => {
-    const timeParam = searchParams.get('time');
-    if (timeParam) {
-      const seconds = parseTimeToSeconds(timeParam);
-      if (seconds !== null && seconds >= 0) {
-        setInitialTime(seconds);
-        hasInitializedRef.current = true;
-        return;
-      }
+    if (lastInitializedIdRef.current !== id) {
+      hasInitializedRef.current = false;
+      lastInitializedIdRef.current = id;
     }
     
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
     
+    const timeParam = searchParams.get('time');
+    if (timeParam) {
+      const seconds = parseTimeToSeconds(timeParam);
+      if (seconds !== null && seconds >= 0) {
+        setInitialTime(seconds);
+        return;
+      }
+    }
+    
     try {
       const saved = localStorage.getItem(`videoPlaybackState_${id}`);
       if (saved) {
         const state = JSON.parse(saved);
-        if (Date.now() - state.updatedAt < 7 * 24 * 60 * 60 * 1000) {
-          setInitialTime(Math.max(0, state.time - 5));
-        }
+        // if (Date.now() - state.updatedAt < 7 * 24 * 60 * 60 * 1000) {
+        setInitialTime(Math.max(0, state.time - 5));
+        // }
       }
     } catch {
     }
-  }, [id, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
+  const isPartSwitchRef = useRef(false);
+  
   useEffect(() => {
+    if (isPartSwitchRef.current) {
+      isPartSwitchRef.current = false;
+      const idx = playlistVideosRef.current.findIndex(v => v.youtubeId === id);
+      if (idx >= 0) setCurrentPlaylistIndex(idx);
+      return;
+    }
+    
     setLoading(true);
     setVideo(null);
     setPlaylist(null);
     setCurrentTime(0);
     setCurrentPlaylistIndex(-1);
-    setInitialTime(null);
-    hasInitializedRef.current = false;
     
     axios.get(`${API_URL}/video/${id}`)
       .then(res => {
@@ -184,14 +198,14 @@ export default function VideoPage() {
         if (videos.length > 0 && newIndex >= 0 && newIndex < videos.length) {
           const newVideo = videos[newIndex];
           if (newVideo?.youtubeId && newVideo.youtubeId !== currentVideoIdRef.current) {
-
             setVideo(newVideo);
             setCurrentPlaylistIndex(newIndex);
             setCurrentTime(0);
+            setInitialTime(null);
+            hasInitializedRef.current = false;
             setShowDescription(false);
 
             window.history.replaceState(null, '', `/vods/video/${newVideo.youtubeId}`);
-            setSearchParams({}, { replace: true });
           }
         }
       }
@@ -275,22 +289,34 @@ export default function VideoPage() {
       savePlaybackState();
     };
     
+    const intervalId = setInterval(() => {
+      savePlaybackState();
+    }, 30000);
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
     
     return () => {
+      savePlaybackState();
+      clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [savePlaybackState]);
+
+  useEffect(() => {
+    if (!video?.youtubeId || !playlist?.youtubeId) return;
+    localStorage.setItem(`lastPlayedVideo_${playlist.youtubeId}`, video.youtubeId);
+  }, [video?.youtubeId, playlist?.youtubeId]);
 
   const handleSeek = useCallback((time, updateUrl = true) => {
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(time, true);
       setCurrentTime(time);
       if (updateUrl) updateUrlTime(time);
+      savePlaybackState();
     }
-  }, [updateUrlTime]);
+  }, [updateUrlTime, savePlaybackState]);
 
   useEffect(() => {
     if (!descriptionRef.current) return;
@@ -317,18 +343,19 @@ export default function VideoPage() {
     if (playerRef.current?.playVideoAt && playlist?.videos?.length > 1) {
       playerRef.current.playVideoAt(index);
       
-      window.history.replaceState(null, '', `/vods/video/${videoId}`);
-      
       const newVideo = playlist.videos[index];
       if (newVideo) {
         setVideo(newVideo);
         setCurrentPlaylistIndex(index);
         setCurrentTime(0);
+        setInitialTime(null);
+        hasInitializedRef.current = false;
         setShowDescription(false);
-        setSearchParams({}, { replace: true });
+        isPartSwitchRef.current = true;
+        navigate(`/video/${videoId}`, { replace: true });
       }
     } else {
-      navigate(`/video/${videoId}`);
+      navigate(`/video/${videoId}`, { replace: true });
     }
   };
 

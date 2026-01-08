@@ -103,6 +103,12 @@ const useGameBoxStyles = makeStyles((theme) => ({
     justifyContent: "center",
     flexBasis: "33.3333%",
     fontSize: 55,
+    color: "#ffffff",
+    cursor: "pointer",
+    transition: "text-shadow 120ms ease",
+    "&:hover": {
+      textShadow: "0 0 8px rgba(255, 255, 255, 0.8)",
+    },
     [theme.breakpoints.down("mobileCard")]: {
       fontSize: 40,
     },

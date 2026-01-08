@@ -1,4 +1,4 @@
-import { Box, Link, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faYoutube } from "@fortawesome/free-brands-svg-icons";
@@ -12,14 +12,11 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
 
   const cleanDate = new Date(dateCompleted).toDateString().slice(4);
 
-  function ytLink(){
-    if (streams === 1){
-      return `https://www.youtube.com/watch?v=${firstVideo}`
-    }
-    else {
-      return `https://www.youtube.com/watch?v=${firstVideo}&list=${playlistId}`
-    }
-  }
+  const getLastPlayedVideo = () => {
+    if (!playlistId) return firstVideo;
+    const lastPlayed = localStorage.getItem(`lastPlayedVideo_${playlistId}`);
+    return lastPlayed || firstVideo;
+  };
 
   return (
     <Box
@@ -29,13 +26,13 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
       width={"100%"}
     >
       <Box
-      display={"flex"}
-      flexDirection={"column"}
-      justifyContent={"center"}
-      alignItems={"center"}
-      flexBasis={"33.3333%"}
+        display={"flex"}
+        flexDirection={"column"}
+        justifyContent={"center"}
+        alignItems={"center"}
+        flexBasis={"33.3333%"}
       >
-      <Typography
+        <Typography
           fontSize={mobile ? 9 : 11}
           fontWeight={500}
           color={theme.palette.text.primary}
@@ -49,19 +46,16 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
         >
           {cleanDate}
         </Typography>
-        </Box>
-      <Link
-        href={ytLink()}
-        target="_blank"
-        rel="noopener"
-        underline="none"
-        textAlign="center"
+      </Box>
+      <RouterLink
+        to={`/video/${getLastPlayedVideo()}`}
         onClick={(e) => e.stopPropagation()}
+        style={{ textDecoration: 'none' }}
       >
         <Box className={classes.youtube}>
           <FontAwesomeIcon icon={faYoutube} />
         </Box>
-      </Link>
+      </RouterLink>
       <RouterLink
         to={`/playlist/${playlistId}`}
         onClick={(e) => e.stopPropagation()}
