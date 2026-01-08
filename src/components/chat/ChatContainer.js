@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import ChatMessage from './ChatMessage';
 import { API_URL } from '../../utils/constants';
@@ -456,6 +456,8 @@ export default function ChatContainer({
       }
     }
     
+    if (scrollPreserveRef.current) return;
+    
     const cutoffIndex = binarySearchByTime(videoMessages, adjustedTime);
     const startIndex = Math.max(0, cutoffIndex - SCREEN_LIMIT);
     const toShow = videoMessages.slice(startIndex, cutoffIndex);
@@ -467,8 +469,8 @@ export default function ChatContainer({
       const prevLastTime = prevValid.length > 0 ? prevValid[prevValid.length - 1].time : -1;
       const toShowLastTime = toShow.length > 0 ? toShow[toShow.length - 1].time : -1;
       
-      if (toShowLastTime < prevLastTime || toShow.length !== prevValid.length) {
-        return toShow;
+      if (toShowLastTime < prevLastTime) {
+        return isUserAtBottom ? toShow : prev;
       }
 
       const prevIds = new Set(prevValid.map(m => m._id));
@@ -477,10 +479,12 @@ export default function ChatContainer({
       if (newMessages.length > 0) {
         if (!isUserAtBottom) {
           setUnseenMessages(c => c + newMessages.length);
+
+          return prev;
         } else {
           pendingScrollRef.current = true;
+          return toShow;
         }
-        return toShow;
       }
       
       return prev;
@@ -511,8 +515,13 @@ export default function ChatContainer({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  const scrollPreserveRef = useRef(null);
+  
   const handleScroll = useCallback(() => {
     if (!messagesRef.current) return;
+    // Skip scroll handling if we're preserving scroll position
+    if (scrollPreserveRef.current) return;
+    
     const { scrollTop, scrollHeight, clientHeight } = messagesRef.current;
     const atBottom = scrollHeight - scrollTop - clientHeight <= 20;
     const atTop = scrollTop <= 30;
@@ -531,13 +540,15 @@ export default function ChatContainer({
         if (cutoffIndex > 0) {
           const startIndex = Math.max(0, cutoffIndex - 100);
           const toAdd = videoMessages.slice(startIndex, cutoffIndex);
-          const prevScrollHeight = messagesRef.current.scrollHeight;
+          
+          const el = messagesRef.current;
+          const prevScrollHeight = el.scrollHeight;
+          const prevScrollTop = el.scrollTop;
+          
+          // Mark that we're preserving scroll
+          scrollPreserveRef.current = { prevScrollHeight, prevScrollTop };
+          
           setDisplayedMessages(prev => mergeSortedMessages(toAdd, prev));
-          requestAnimationFrame(() => {
-            if (messagesRef.current) {
-              messagesRef.current.scrollTop = messagesRef.current.scrollHeight - prevScrollHeight;
-            }
-          });
         } else if (firstTime > 60) {
           setLoadingMore(true);
           loadTimeRange(0, firstTime, vid).then(() => {
@@ -548,6 +559,19 @@ export default function ChatContainer({
       }
     }
   }, [displayedMessages, videoMessages, loadingMore, loadTimeRange]);
+
+  // Preserve scroll position after adding messages to top
+  useLayoutEffect(() => {
+    if (!scrollPreserveRef.current || !messagesRef.current) return;
+    
+    const { prevScrollHeight } = scrollPreserveRef.current;
+    const el = messagesRef.current;
+    const newScrollHeight = el.scrollHeight;
+    const scrollDiff = newScrollHeight - prevScrollHeight;
+    
+    el.scrollTop = scrollDiff;
+    scrollPreserveRef.current = null;
+  }, [displayedMessages]);
 
   const handleResumeScroll = () => {
     if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
