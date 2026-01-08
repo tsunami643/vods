@@ -398,7 +398,7 @@ export default function ChatContainer({
     const isSeek = lastSyncTimeRef.current >= 0 && Math.abs(timeDiff) > 10;
     
     const now = Date.now();
-    if (!isSeek && lastRealTimeUpdateRef.current > 0 && now - lastRealTimeUpdateRef.current < 200) {
+    if (!isSeek && lastRealTimeUpdateRef.current > 0 && now - lastRealTimeUpdateRef.current < 100) {
       return;
     }
     lastRealTimeUpdateRef.current = now;
@@ -452,6 +452,16 @@ export default function ChatContainer({
     
     setDisplayedMessages(prev => {
       const prevValid = prev.filter(m => m._videoId === vid);
+      
+      // If going backward in time, we need to remove future messages
+      const lastPrevTime = prevValid.length > 0 ? prevValid[prevValid.length - 1].time : 0;
+      const isRewind = lastPrevTime > adjustedTime + 1;
+      
+      if (isRewind) {
+        // Rewind - show only messages up to current time
+        return toShow;
+      }
+      
       if (toShow.length === 0 && prevValid.length === 0) return toShow;
       
       const prevIds = new Set(prevValid.map(m => m._id));
@@ -780,7 +790,9 @@ export default function ChatContainer({
       <div 
         className={`chat-resize-handle ${isResizing ? 'resizing' : ''}`}
         onMouseDown={handleResizeStart}
-      />
+      >
+        <div className={`drag-shield ${isResizing ? 'active' : ''}`} />
+      </div>
       <div className="chat-header">
         <div className="header-buttons">
           <button className="header-button" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} onClick={toggleFullscreen}>

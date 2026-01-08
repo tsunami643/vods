@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../utils/constants';
 import { ChatContainer } from './chat';
@@ -61,6 +61,7 @@ function parseTimecode(ts) {
 
 export default function VideoPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [video, setVideo] = useState(null);
   const [playlist, setPlaylist] = useState(null);
@@ -72,6 +73,7 @@ export default function VideoPage() {
   const [initialTime, setInitialTime] = useState(null);
   const [hideVideoInfo, setHideVideoInfo] = useState(false);
   const [isWideChat, setIsWideChat] = useState(false);
+  const [currentPlaylistIndex, setCurrentPlaylistIndex] = useState(-1);
   const [pageTheme, setPageTheme] = useState(() => {
     return localStorage.getItem('chatTheme') || 'blue';
   });
@@ -82,6 +84,7 @@ export default function VideoPage() {
   const infoHeightRef = useRef(0);
   const partSelectorRef = useRef(null);
   const infoTouchRef = useRef({ time: 0, x: 0, y: 0 });
+  const playlistVideosRef = useRef([]);
 
   useEffect(() => {
     const timeParam = searchParams.get('time');
@@ -112,6 +115,7 @@ export default function VideoPage() {
     setVideo(null);
     setPlaylist(null);
     setCurrentTime(0);
+    setCurrentPlaylistIndex(-1);
     
     axios.get(`${API_URL}/video/${id}`)
       .then(res => {
@@ -122,7 +126,12 @@ export default function VideoPage() {
         return null;
       })
       .then(playlistRes => {
-        if (playlistRes) setPlaylist(playlistRes.data);
+        if (playlistRes) {
+          setPlaylist(playlistRes.data);
+          playlistVideosRef.current = playlistRes.data.videos || [];
+          const idx = playlistRes.data.videos?.findIndex(v => v.youtubeId === id) ?? -1;
+          setCurrentPlaylistIndex(idx);
+        }
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -151,6 +160,34 @@ export default function VideoPage() {
         document.body.appendChild(tag);
       });
     }
+
+    // Listen for YouTube postMessage events (playlist video changes)
+    const handleYTMessage = (event) => {
+      if (event.origin !== 'https://www.youtube.com') return;
+      
+      let data;
+      try {
+        data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      } catch {
+        return;
+      }
+      
+      if (data?.event === 'infoDelivery' && Number.isInteger(data?.info?.playlistIndex)) {
+        const newIndex = data.info.playlistIndex;
+        const videos = playlistVideosRef.current;
+        
+        // Check if the playlist index changed and we have video data
+        if (videos.length > 0 && newIndex !== currentPlaylistIndex && newIndex >= 0 && newIndex < videos.length) {
+          const newVideo = videos[newIndex];
+          if (newVideo?.youtubeId && newVideo.youtubeId !== video.youtubeId) {
+            // Navigate to the new video
+            navigate(`/video/${newVideo.youtubeId}`, { replace: true });
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('message', handleYTMessage);
 
     const initPlayer = async () => {
       await loadYT();
@@ -188,9 +225,10 @@ export default function VideoPage() {
       cancelled = true;
       clearTimeout(timeoutId);
       if (intervalId) clearInterval(intervalId);
+      window.removeEventListener('message', handleYTMessage);
       playerRef.current = null;
     };
-  }, [video]);
+  }, [video, currentPlaylistIndex, navigate]);
 
   const updateUrlTime = useCallback((time) => {
     if (time > 0) {
@@ -368,7 +406,15 @@ export default function VideoPage() {
               key={video.youtubeId}
               id={`yt-player-${video.youtubeId}`}
               title={video.name}
-              src={`https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`}
+              src={(() => {
+                const hasPlaylist = playlist?.youtubeId && videos.length > 1;
+                if (hasPlaylist) {
+                  // Load as playlist with YouTube's built-in playlist controls
+                  return `https://www.youtube.com/embed?listType=playlist&list=${playlist.youtubeId}&index=${currentIndex + 1}&enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`;
+                }
+                // Single video
+                return `https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`;
+              })()}
               allowFullScreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
