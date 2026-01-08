@@ -416,7 +416,7 @@ a.part-dropdown-item {
 
 .video-description-container.show {
   max-height: 200px;
-  overflow: auto;
+  /* overflow is set dynamically via JS based on content height */
 }
 
 .video-description {

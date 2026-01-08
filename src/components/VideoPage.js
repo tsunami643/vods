@@ -297,8 +297,11 @@ export default function VideoPage() {
     return () => el.removeEventListener('click', handleClick);
   }, [handleSeek, showDescription]);
 
-  const handlePartClick = () => {
+  const handlePartClick = (e, videoId) => {
+    e.preventDefault();
     setShowPartDropdown(false);
+    // Navigate without time param to start the new part from beginning
+    navigate(`/video/${videoId}`);
   };
 
   useEffect(() => {
@@ -320,7 +323,30 @@ export default function VideoPage() {
   }, [showPartDropdown]);
 
   const handleToggleDescription = () => {
-    setShowDescription(!showDescription);
+    const newShowDescription = !showDescription;
+    setShowDescription(newShowDescription);
+    
+    if (descriptionRef.current) {
+      const descriptionEl = descriptionRef.current;
+      const containerEl = descriptionEl.parentElement;
+      
+      if (newShowDescription) {
+        // Calculate if scrollbar is needed
+        const descStyle = getComputedStyle(descriptionEl);
+        const margin = parseFloat(descStyle.marginTop) + parseFloat(descStyle.marginBottom);
+        const contentHeight = descriptionEl.offsetHeight + margin;
+        
+        // 200px is the max-height for desktop, 70px for mobile
+        const isMobile = window.innerWidth <= 1100;
+        const maxHeight = isMobile ? 70 : 200;
+        
+        // Only enable scrolling if content exceeds max height
+        containerEl.style.overflow = contentHeight <= maxHeight ? 'hidden' : 'auto';
+      } else {
+        // Reset overflow when hiding
+        containerEl.style.overflow = 'hidden';
+      }
+    }
   };
 
   const handleToggleHideInfo = useCallback((hide) => {
@@ -489,7 +515,7 @@ export default function VideoPage() {
                             role="option"
                             aria-selected={v.youtubeId === video.youtubeId}
                             tabIndex={v.youtubeId === video.youtubeId ? 0 : -1}
-                            onClick={handlePartClick}
+                            onClick={(e) => handlePartClick(e, v.youtubeId)}
                           >
                             <div className="part-dropdown-thumb-container">
                               <img 
