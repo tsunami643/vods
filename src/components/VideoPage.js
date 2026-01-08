@@ -80,6 +80,8 @@ export default function VideoPage() {
   const infoContainerRef = useRef(null);
   const infoHeightRef = useRef(0);
   const partSelectorRef = useRef(null);
+  const partDropdownRef = useRef(null);
+  const dropdownScrolledRef = useRef(false);
   const infoTouchRef = useRef({ time: 0, x: 0, y: 0 });
   const playlistVideosRef = useRef([]);
 
@@ -345,14 +347,15 @@ export default function VideoPage() {
       
       const newVideo = playlist.videos[index];
       if (newVideo) {
+        isPartSwitchRef.current = true;
+        window.history.replaceState(null, '', `/vods/video/${videoId}`);
+        
         setVideo(newVideo);
         setCurrentPlaylistIndex(index);
         setCurrentTime(0);
         setInitialTime(null);
         hasInitializedRef.current = false;
         setShowDescription(false);
-        isPartSwitchRef.current = true;
-        navigate(`/video/${videoId}`, { replace: true });
       }
     } else {
       navigate(`/video/${videoId}`, { replace: true });
@@ -360,7 +363,10 @@ export default function VideoPage() {
   };
 
   useEffect(() => {
-    if (!showPartDropdown) return;
+    if (!showPartDropdown) {
+      dropdownScrolledRef.current = false;
+      return;
+    }
     
     const handleClickOutside = (e) => {
       if (partSelectorRef.current && !partSelectorRef.current.contains(e.target)) {
@@ -375,6 +381,20 @@ export default function VideoPage() {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
+  }, [showPartDropdown]);
+
+  useEffect(() => {
+    if (!showPartDropdown || dropdownScrolledRef.current) return;
+    
+    requestAnimationFrame(() => {
+      if (partDropdownRef.current) {
+        const activeItem = partDropdownRef.current.querySelector('.part-dropdown-item.active');
+        if (activeItem) {
+          activeItem.scrollIntoView({ block: 'nearest' });
+          dropdownScrolledRef.current = true;
+        }
+      }
+    });
   }, [showPartDropdown]);
 
   const handleToggleDescription = () => {
@@ -546,15 +566,7 @@ export default function VideoPage() {
                         role="listbox" 
                         aria-label="Select video part"
                         tabIndex={0}
-                        ref={(el) => {
-                          if (el) {
-                            const activeItem = el.querySelector('.part-dropdown-item.active');
-                            if (activeItem) {
-                              activeItem.focus();
-                              activeItem.scrollIntoView({ block: 'nearest' });
-                            }
-                          }
-                        }}
+                        ref={partDropdownRef}
                       >
                         {videos.map((v, idx) => (
                           <Link 
