@@ -1,251 +1,313 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../utils/constants';
-import { 
-  Box, 
-  Button, 
-  Typography, 
-  Collapse, 
-  IconButton, 
-  Paper,
-  useTheme,
-  useMediaQuery
-} from '@mui/material';
-import { ExpandMore, ExpandLess, ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { ChatContainer } from './chat';
+import '../styles/VideoPage.css';
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatDuration(seconds) {
+  if (!seconds) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+
+function parseTimecode(ts) {
+  const parts = ts.split(':').map(Number);
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return 0;
+}
 
 export default function VideoPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const theme = useTheme();
-  const mobile = useMediaQuery(theme.breakpoints.down('md'));
   const [video, setVideo] = useState(null);
+  const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [chatOpen, setChatOpen] = useState(!mobile); // Open by default on desktop
-  // Player state
-  const playerRef = useRef(null);
-  const timerRef = useRef(null);
-  const [playerReady, setPlayerReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showDescription, setShowDescription] = useState(false);
+  const [showPartDropdown, setShowPartDropdown] = useState(false);
+  const playerRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const videoWrapperRef = useRef(null);
 
   useEffect(() => {
     setLoading(true);
+    setVideo(null);
+    setPlaylist(null);
+    setCurrentTime(0);
+    
     axios.get(`${API_URL}/video/${id}`)
-      .then(res => setVideo(res.data))
+      .then(res => {
+        setVideo(res.data);
+        if (res.data.playlistYoutubeId) {
+          return axios.get(`${API_URL}/playlist/${res.data.playlistYoutubeId}`);
+        }
+        return null;
+      })
+      .then(playlistRes => {
+        if (playlistRes) setPlaylist(playlistRes.data);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Load YouTube Iframe API and attach to player
   useEffect(() => {
     if (!video) return;
-    // Ensure API script is loaded
-    function loadScript() {
-      return new Promise((resolve) => {
-        if (window.YT && window.YT.Player) {
-          resolve();
+    
+    let cancelled = false;
+    let intervalId = null;
+    let player = null;
+    
+    function loadYT() {
+      return new Promise(resolve => {
+        if (window.YT?.Player) { resolve(); return; }
+        if (window.onYouTubeIframeAPIReadyCallbacks) {
+          window.onYouTubeIframeAPIReadyCallbacks.push(resolve);
           return;
         }
+        window.onYouTubeIframeAPIReadyCallbacks = [resolve];
         const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
-        window.onYouTubeIframeAPIReady = () => resolve();
+        window.onYouTubeIframeAPIReady = () => {
+          window.onYouTubeIframeAPIReadyCallbacks.forEach(cb => cb());
+          window.onYouTubeIframeAPIReadyCallbacks = null;
+        };
         document.body.appendChild(tag);
       });
     }
 
-    let cancelled = false;
-
-    loadScript().then(() => {
+    const initPlayer = async () => {
+      await loadYT();
       if (cancelled) return;
-      if (playerRef.current) {
-        try { playerRef.current.destroy && playerRef.current.destroy(); } catch {}
-      }
-      playerRef.current = new window.YT.Player('youtube-player', {
-        videoId: video.youtubeId,
+      
+      const iframe = document.getElementById(`yt-player-${video.youtubeId}`);
+      if (!iframe || cancelled) return;
+      
+      player = new window.YT.Player(iframe, {
         events: {
-          onReady: (e) => {
-            setPlayerReady(true);
-            setDuration(e.target.getDuration?.() || 0);
-            // Start polling current time
-            if (timerRef.current) clearInterval(timerRef.current);
-            timerRef.current = setInterval(() => {
+          onReady: () => {
+            if (cancelled) return;
+            playerRef.current = player;
+            intervalId = setInterval(() => {
+              if (cancelled || !playerRef.current) return;
               try {
-                const t = e.target.getCurrentTime?.() || 0;
-                setCurrentTime(t);
-                setDuration(e.target.getDuration?.() || 0);
-                const state = e.target.getPlayerState?.();
-                setIsPlaying(state === window.YT.PlayerState.PLAYING);
+                setCurrentTime(playerRef.current.getCurrentTime?.() || 0);
+                setIsPlaying(playerRef.current.getPlayerState?.() === window.YT.PlayerState.PLAYING);
               } catch {}
-            }, 500);
+            }, 200);
           },
           onStateChange: (ev) => {
-            try {
-              const state = ev.data;
-              setIsPlaying(state === window.YT.PlayerState.PLAYING);
-            } catch {}
+            if (!cancelled) setIsPlaying(ev.data === window.YT.PlayerState.PLAYING);
           }
         }
       });
-    });
+    };
+    
+    const timeoutId = setTimeout(initPlayer, 100);
 
     return () => {
       cancelled = true;
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      if (playerRef.current) {
-        try { playerRef.current.destroy && playerRef.current.destroy(); } catch {}
-        playerRef.current = null;
-      }
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+      playerRef.current = null;
     };
   }, [video]);
 
-  if (loading) return <Typography>Loading...</Typography>;
-  if (!video) return <Typography>Not found</Typography>;
-
-  const goPrev = () => navigate(`/video/${video.prevId}`);
-  const goNext = () => navigate(`/video/${video.nextId}`);
-
-  function formatTime(totalSeconds) {
-    if (!totalSeconds || isNaN(totalSeconds)) return '0:00';
-    const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
-    const minutes = Math.floor((totalSeconds / 60) % 60).toString();
-    const hours = Math.floor(totalSeconds / 3600);
-    if (hours > 0) {
-      return `${hours}:${minutes.padStart(2, '0')}:${seconds}`;
+  const handleSeek = useCallback((time) => {
+    if (playerRef.current?.seekTo) {
+      playerRef.current.seekTo(time, true);
+      setCurrentTime(time);
     }
-    return `${minutes}:${seconds}`;
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!descriptionRef.current) return;
+    
+    const handleClick = (e) => {
+      const target = e.target.closest('.timecode');
+      if (target && target.dataset.seek) {
+        e.preventDefault();
+        e.stopPropagation();
+        const seconds = parseInt(target.dataset.seek, 10);
+        handleSeek(seconds);
+      }
+    };
+    
+    const el = descriptionRef.current;
+    el.addEventListener('click', handleClick);
+    return () => el.removeEventListener('click', handleClick);
+  }, [handleSeek, showDescription]);
+
+  const handlePartClick = () => {
+    setShowPartDropdown(false);
+  };
+
+  const handleToggleDescription = () => {
+    const newShowDescription = !showDescription;
+    setShowDescription(newShowDescription);
+    
+    if (newShowDescription && videoWrapperRef.current && window.innerWidth > 1100) {
+      setTimeout(() => {
+        if (videoWrapperRef.current) {
+          videoWrapperRef.current.scrollTop = videoWrapperRef.current.scrollHeight;
+        }
+      }, 50);
+    }
+  };
+
+  const isStaleVideo = video && video.youtubeId !== id;
+  if (loading || isStaleVideo) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
+  if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Video not found</div>;
+
+  const hasDescription = video.description && !video.description.startsWith('Broadcasted live on Twitch');
+  const videos = playlist?.videos || [];
+  const currentIndex = videos.findIndex(v => v.youtubeId === video.youtubeId);
+  const partMatch = video.name?.match(/\(Part\s+(\d+(?:\.\d+)?)/);
+  const partNumber = partMatch ? partMatch[1] : (currentIndex + 1);
+
+  const formattedDescription = video.description
+    ?.replace(/https?:\/\/\S+/g, url => `<a class="description-link" target="_blank" rel="noopener noreferrer" href="${url}">${url}</a>`)
+    .replace(/\b(\d{1,2}:)?(\d{1,2}):(\d{2})\b/g, (match) => {
+      const seconds = parseTimecode(match);
+      return `<button type="button" class="description-link timecode" data-seek="${seconds}">${match}</button>`;
+    });
 
   return (
-    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Title */}
-      <Box sx={{ p: 2, pb: 1 }}>
-        <Typography variant="h5" gutterBottom>
-          {video.name || `Video #${video.id}`}
-        </Typography>
-      </Box>
-
-      {/* Main content area */}
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Video container */}
-        <Paper
-          elevation={2}
-          sx={{
-            flex: 1,
-            m: 1,
-            mr: chatOpen ? 0.5 : 1,
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            flexDirection: 'column',
-            transition: 'flex 0.3s ease'
-          }}
-        >
-          {/* Video player */}
-          <Box sx={{ 
-            flex: 1, 
-            position: 'relative',
-            minHeight: mobile ? '200px' : '300px'
-          }}>
+    <div className="video-page">
+      <div className="video-content">
+        <div ref={videoWrapperRef} className={`video-wrapper ${showDescription ? 'description-shown' : ''}`}>
+          <div className="compact-header">
+            <Link to="/" className="header-logo-link">
+              <img src={require('../images/logo.png')} alt="logo" className="header-logo" />
+              <span className="header-site-name">tsunami's twitch vods</span>
+            </Link>
+          </div>
+          
+          <div className="youtube-player-container">
             <iframe
-              id="youtube-player"
-              title="youtube"
-              src={`https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1`}
+              key={video.youtubeId}
+              id={`yt-player-${video.youtubeId}`}
+              title={video.name}
+              src={`https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
               allowFullScreen
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                border: 0
-              }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
-          </Box>
-        </Paper>
-
-        {/* Chat sidebar */}
-        <Paper
-          elevation={2}
-          sx={{
-            height: '100%',
-            m: 1,
-            ml: 0.5,
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            width: chatOpen ? (mobile ? '100%' : '350px') : '60px',
-            transition: 'width 0.3s ease',
-            flexShrink: 0,
-            overflow: 'hidden'
-          }}
-        >
-          {/* Chat header */}
-          <Box sx={{ 
-            p: 0.5, 
-            borderBottom: chatOpen ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: chatOpen ? 'space-between' : 'center',
-            minHeight: '40px',
-            lineHeight: 1
-          }}>
-            {chatOpen && (
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1 }}>
-                Chat Log
-              </Typography>
+          </div>
+          
+          <div className="info-container" style={{ height: showDescription ? 'auto' : undefined }}>
+            <div className="info-topbar">
+              <div className="video-metadata-container">
+                {playlist?.gameCover && (
+                  <Link 
+                    to={`/playlist/${video.playlistYoutubeId}`}
+                    className="game-cover" 
+                    title="Go to Playlist"
+                  >
+                    <img src={playlist.gameCover} alt="Game Cover" className="game-cover-img" />
+                    <div className="game-cover-overlay">
+                      <svg className="back-arrow" viewBox="4 4 16 16">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+                      </svg>
+                    </div>
+                  </Link>
+                )}
+                <div className="video-text-container">
+                  <div className="video-header">
+                    <div className="video-title">{video.name}</div>
+                    {video.subTitle && <div className="video-subtitle" title="Twitch Stream Title">{video.subTitle}</div>}
+                    <div className="video-date">{formatDate(video.publishedAt || video.createdAt)}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="video-controls">
+                {videos.length > 1 && (
+                  <div className="part-selector-container">
+                    <label>Part</label>
+                    <button 
+                      className="part-selector-button"
+                      onClick={() => setShowPartDropdown(!showPartDropdown)}
+                    >
+                      {partNumber} ▾
+                    </button>
+                    {showPartDropdown && (
+                      <div className="part-dropdown">
+                        {videos.map((v) => (
+                          <Link 
+                            key={v.youtubeId}
+                            to={`/video/${v.youtubeId}`}
+                            className={`part-dropdown-item ${v.youtubeId === video.youtubeId ? 'active' : ''}`}
+                            onClick={handlePartClick}
+                          >
+                            <div className="part-dropdown-thumb-container">
+                              <img 
+                                src={`https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg`}
+                                alt=""
+                                className="part-dropdown-thumb"
+                              />
+                              {v.duration && (
+                                <div className="part-duration-badge">{formatDuration(v.duration)}</div>
+                              )}
+                            </div>
+                            <div className="part-dropdown-text">
+                              <div className="part-video-title">{v.name}</div>
+                              <div className="part-video-date">{formatDate(v.publishedAt)}</div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {hasDescription && (
+                  <div className="description-expander-container" onClick={handleToggleDescription}>
+                    <label className="description-button-label">
+                      {showDescription ? 'Hide' : 'Show'} Description
+                    </label>
+                    <div className="description-button-container">
+                      <button className="svg-button">
+                        <svg className="description-icon" viewBox="4 4 16 16">
+                          <path d="M14 17H4v2h10zm6-8H4v2h16zM4 15h16v-2H4zM4 5v2h16V5z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {showDescription && hasDescription && (
+              <div className="video-description-container">
+                <div 
+                  ref={descriptionRef}
+                  className="video-description"
+                  dangerouslySetInnerHTML={{ __html: formattedDescription }}
+                />
+              </div>
             )}
-            <IconButton 
-              size="small" 
-              onClick={() => setChatOpen(!chatOpen)}
-              sx={{ minWidth: 'auto', p: 0.5 }}
-            >
-              {chatOpen ? <ChevronRight /> : <ChevronLeft />}
-            </IconButton>
-          </Box>
-
-          {/* Chat content */}
-          {chatOpen && (
-            <Box sx={{ 
-              flex: 1, 
-              p: 2, 
-              overflow: 'auto',
-              backgroundColor: 'rgba(0, 0, 0, 0.2)'
-            }}>
-              <Typography variant="body2" color="text.secondary">
-                Chat log will be displayed here when available.
-              </Typography>
-            </Box>
-          )}
-        </Paper>
-      </Box>
-
-      {/* Controls area below video+chat */}
-      <Box sx={{ p: 2, pt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" disabled={!video.prevId} onClick={goPrev}>
-            Previous
-          </Button>
-          <Button variant="contained" disabled={!video.nextId} onClick={goNext}>
-            Next
-          </Button>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-          {typeof video.playlistCount === 'number' && (
-            <Typography variant="body2" color="text.secondary">
-              Videos in playlist: {video.playlistCount}
-            </Typography>
-          )}
-          <Typography variant="body2" color="text.secondary">
-            {isPlaying ? 'Playing' : 'Paused'} · {formatTime(currentTime)} / {formatTime(duration)}
-          </Typography>
-        </Box>
-      </Box>
-
-    </Box>
+          </div>
+        </div>
+        
+        <ChatContainer
+          key={id}
+          videoId={video.id}
+          currentTime={currentTime}
+          isPlaying={isPlaying}
+          onSeek={handleSeek}
+          delayTime={3}
+        />
+      </div>
+    </div>
   );
 }
-
-
