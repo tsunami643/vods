@@ -526,7 +526,7 @@ export default function VideoPage() {
               <div className="video-metadata-container">
                 {playlist?.gameCover && (
                   <Link 
-                    to={`/playlist/${video.playlistYoutubeId}`}
+                    to={`/playlist/${playlist.youtubeId}`}
                     className="game-cover" 
                     title="Go to Playlist"
                   >
