@@ -87,12 +87,14 @@ export default function VideoPage() {
   const playlistVideosRef = useRef([]);
 
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    
     const timeParam = searchParams.get('time');
     if (timeParam) {
       const seconds = convertTime(timeParam);
       if (seconds && seconds > 0) {
         setInitialTime(seconds);
-        hasInitializedRef.current = false;
         return;
       }
     }
@@ -107,7 +109,6 @@ export default function VideoPage() {
       }
     } catch {
     }
-    hasInitializedRef.current = false;
   }, [id, searchParams]);
 
   useEffect(() => {
@@ -116,6 +117,8 @@ export default function VideoPage() {
     setPlaylist(null);
     setCurrentTime(0);
     setCurrentPlaylistIndex(-1);
+    setInitialTime(null);
+    hasInitializedRef.current = false;
     
     axios.get(`${API_URL}/video/${id}`)
       .then(res => {
@@ -176,11 +179,9 @@ export default function VideoPage() {
         const newIndex = data.info.playlistIndex;
         const videos = playlistVideosRef.current;
         
-        // Check if the playlist index changed and we have video data
         if (videos.length > 0 && newIndex !== currentPlaylistIndex && newIndex >= 0 && newIndex < videos.length) {
           const newVideo = videos[newIndex];
           if (newVideo?.youtubeId && newVideo.youtubeId !== video.youtubeId) {
-            // Navigate to the new video
             navigate(`/video/${newVideo.youtubeId}`, { replace: true });
           }
         }
