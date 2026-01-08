@@ -139,8 +139,15 @@ export default function VideoPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // Stable ref for current video youtubeId to use in message handler
+  const currentVideoIdRef = useRef(video?.youtubeId);
   useEffect(() => {
-    if (!video) return;
+    currentVideoIdRef.current = video?.youtubeId;
+  }, [video?.youtubeId]);
+
+  // Player initialization - only depends on playlist, not video
+  useEffect(() => {
+    if (!playlist && !video) return;
     
     let cancelled = false;
     let intervalId = null;
@@ -164,7 +171,7 @@ export default function VideoPage() {
       });
     }
 
-    // Listen for YouTube postMessage events (playlist video changes)
+    // Listen for YouTube postMessage events (playlist video changes via YT controls)
     const handleYTMessage = (event) => {
       if (event.origin !== 'https://www.youtube.com') return;
       
@@ -179,10 +186,17 @@ export default function VideoPage() {
         const newIndex = data.info.playlistIndex;
         const videos = playlistVideosRef.current;
         
-        if (videos.length > 0 && newIndex !== currentPlaylistIndex && newIndex >= 0 && newIndex < videos.length) {
+        if (videos.length > 0 && newIndex >= 0 && newIndex < videos.length) {
           const newVideo = videos[newIndex];
-          if (newVideo?.youtubeId && newVideo.youtubeId !== video.youtubeId) {
-            navigate(`/video/${newVideo.youtubeId}`, { replace: true });
+          if (newVideo?.youtubeId && newVideo.youtubeId !== currentVideoIdRef.current) {
+            // Update state instead of navigating - smoother transition
+            setVideo(newVideo);
+            setCurrentPlaylistIndex(newIndex);
+            setCurrentTime(0);
+            setShowDescription(false);
+            // Update URL without navigation
+            window.history.replaceState(null, '', `/vods/video/${newVideo.youtubeId}`);
+            setSearchParams({}, { replace: true });
           }
         }
       }
@@ -194,8 +208,12 @@ export default function VideoPage() {
       await loadYT();
       if (cancelled) return;
       
-      const iframe = document.getElementById(`yt-player-${video.youtubeId}`);
+      const iframeId = playlist?.youtubeId || video?.youtubeId;
+      const iframe = document.getElementById(`yt-player-${iframeId}`);
       if (!iframe || cancelled) return;
+      
+      // Skip if player already exists
+      if (playerRef.current) return;
       
       player = new window.YT.Player(iframe, {
         events: {
@@ -229,7 +247,7 @@ export default function VideoPage() {
       window.removeEventListener('message', handleYTMessage);
       playerRef.current = null;
     };
-  }, [video, currentPlaylistIndex, navigate]);
+  }, [playlist?.youtubeId, setSearchParams]);
 
   const updateUrlTime = useCallback((time) => {
     if (time > 0) {
@@ -297,11 +315,31 @@ export default function VideoPage() {
     return () => el.removeEventListener('click', handleClick);
   }, [handleSeek, showDescription]);
 
-  const handlePartClick = (e, videoId) => {
+  const handlePartClick = (e, videoId, index) => {
     e.preventDefault();
     setShowPartDropdown(false);
-    // Navigate without time param to start the new part from beginning
-    navigate(`/video/${videoId}`);
+    
+    // Use playVideoAt to switch videos within the playlist without page reload
+    if (playerRef.current?.playVideoAt && playlist?.videos?.length > 1) {
+      playerRef.current.playVideoAt(index);
+      
+      // Update URL without triggering navigation
+      window.history.replaceState(null, '', `/vods/video/${videoId}`);
+      
+      // Update state to reflect new video
+      const newVideo = playlist.videos[index];
+      if (newVideo) {
+        setVideo(newVideo);
+        setCurrentPlaylistIndex(index);
+        setCurrentTime(0);
+        setShowDescription(false);
+        // Clear time param from URL state
+        setSearchParams({}, { replace: true });
+      }
+    } else {
+      // Fallback to navigation if playVideoAt not available
+      navigate(`/video/${videoId}`);
+    }
   };
 
   useEffect(() => {
@@ -400,8 +438,8 @@ export default function VideoPage() {
     localStorage.setItem('chatTheme', theme);
   }, []);
 
-  const isStaleVideo = video && video.youtubeId !== id;
-  if (loading || isStaleVideo) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
+  // Only show loading on initial load, not when switching parts via playVideoAt
+  if (loading) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
   if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Video not found</div>;
 
   const hasDescription = video.description && !video.description.startsWith('Broadcasted live on Twitch');
@@ -430,8 +468,8 @@ export default function VideoPage() {
           
           <div className="youtube-player-container">
             <iframe
-              key={video.youtubeId}
-              id={`yt-player-${video.youtubeId}`}
+              key={playlist?.youtubeId || video.youtubeId}
+              id={`yt-player-${playlist?.youtubeId || video.youtubeId}`}
               title={video.name}
               src={(() => {
                 const hasPlaylist = playlist?.youtubeId && videos.length > 1;
@@ -515,7 +553,7 @@ export default function VideoPage() {
                             role="option"
                             aria-selected={v.youtubeId === video.youtubeId}
                             tabIndex={v.youtubeId === video.youtubeId ? 0 : -1}
-                            onClick={(e) => handlePartClick(e, v.youtubeId)}
+                            onClick={(e) => handlePartClick(e, v.youtubeId, idx)}
                           >
                             <div className="part-dropdown-thumb-container">
                               <img 
@@ -568,7 +606,7 @@ export default function VideoPage() {
         </div>
         
         <ChatContainer
-          key={id}
+          key={video.id}
           videoId={video.id}
           currentTime={currentTime}
           isPlaying={isPlaying}
