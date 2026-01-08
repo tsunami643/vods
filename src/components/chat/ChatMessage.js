@@ -19,9 +19,55 @@ function getEmoteUrl(emote, size = '1x') {
   }
 }
 
+// Cheermote patterns and tiers
+const CHEERMOTE_NAMES = [
+  'cheer', 'doodlecheer', 'biblethump', 'cheerwhal', 'corgo', 'scoops', 'uni',
+  'showlove', 'party', 'seemsgood', 'pride', 'kappa', 'frankerz', 'heyguys',
+  'dansgame', 'elegiggle', 'trihard', 'kreygasm', '4head', 'swiftrage',
+  'notlikethis', 'failfish', 'vohiyo', 'pjsalt', 'mrdestructoid', 'bday',
+  'ripcheer', 'shamrock', 'bitboss', 'streamlabs', 'muxy', 'holidaycheer',
+  'goal', 'anon', 'charity'
+];
+
+const CHEERMOTE_REGEX = new RegExp(`(?<!\\w)(${CHEERMOTE_NAMES.join('|')})(\\d+)(?!\\w)`, 'gi');
+
+function getCheermoteTier(amount) {
+  if (amount >= 10000) return { tier: '10000', color: '#f43021' };
+  if (amount >= 5000) return { tier: '5000', color: '#0099fe' };
+  if (amount >= 1000) return { tier: '1000', color: '#1db2a5' };
+  if (amount >= 100) return { tier: '100', color: '#9c3ee8' };
+  return { tier: '1', color: '#979797' };
+}
+
+function Cheermote({ name, amount }) {
+  const { tier, color } = getCheermoteTier(amount);
+  const baseUrl = `https://d3aqoihi2n8ty8.cloudfront.net/actions/${name.toLowerCase()}/dark/animated/${tier}/`;
+  const urls = [baseUrl + '1.gif', baseUrl + '2.gif', baseUrl + '4.gif'];
+  const srcset = urls.slice(1).map((u, i) => `${u} ${i + 2}x`).join(', ');
+  
+  return (
+    <Tooltip text={`${name}${amount}\nTwitch`} className="chat-emote-container">
+      <span className="emote cheermote" style={{ color }}>
+        <img
+          className="cheermote-img"
+          src={urls[0]}
+          srcSet={srcset}
+          alt={`${name}${amount}`}
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.insertAdjacentText('afterend', `${name}${amount}`);
+          }}
+        />
+        <span className="cheermote-amount">{amount}</span>
+      </span>
+    </Tooltip>
+  );
+}
+
 function parseMessageContent(message, emotes, emoteList) {
   if (!emotes || emotes.length === 0) {
-    return [{ type: 'text', content: message }];
+    // No emotes, but still check for cheermotes in text
+    return parseCheermotes(message);
   }
 
   const sortedEmotes = [...emotes].sort((a, b) => b[1] - a[1]);
@@ -35,7 +81,10 @@ function parseMessageContent(message, emotes, emoteList) {
 
     if (end + 1 < lastIdx) {
       const textAfter = chars.slice(end + 1, lastIdx).join('');
-      if (textAfter) parts.unshift({ type: 'text', content: textAfter });
+      if (textAfter) {
+        // Parse cheermotes in text segments
+        parts.unshift(...parseCheermotes(textAfter));
+      }
     }
 
     parts.unshift({ type: 'emote', emote, start, end });
@@ -44,9 +93,48 @@ function parseMessageContent(message, emotes, emoteList) {
 
   if (lastIdx > 0) {
     const textBefore = chars.slice(0, lastIdx).join('');
-    if (textBefore) parts.unshift({ type: 'text', content: textBefore });
+    if (textBefore) {
+      // Parse cheermotes in text segments
+      parts.unshift(...parseCheermotes(textBefore));
+    }
   }
 
+  return parts;
+}
+
+function parseCheermotes(text) {
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  
+  CHEERMOTE_REGEX.lastIndex = 0; // Reset regex state
+  
+  while ((match = CHEERMOTE_REGEX.exec(text)) !== null) {
+    // Add text before match
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+    }
+    
+    // Add cheermote
+    parts.push({ 
+      type: 'cheermote', 
+      name: match[1], 
+      amount: parseInt(match[2], 10) 
+    });
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', content: text.slice(lastIndex) });
+  }
+  
+  // If no matches, return original text
+  if (parts.length === 0) {
+    return [{ type: 'text', content: text }];
+  }
+  
   return parts;
 }
 
@@ -101,8 +189,7 @@ export default function ChatMessage({
             {displayBadges.map((badge, i) => (
               <Tooltip 
                 key={i} 
-                text={badge.title} 
-                imageUrl={`https://static-cdn.jtvnw.net/badges/v1/${badge.url}/3`}
+                text={badge.title}
                 className="badge"
               >
                 <img
@@ -123,14 +210,18 @@ export default function ChatMessage({
         <span className="chat-text">
           {parts.map((part, i) => {
             if (part.type === 'text') return <span key={i}>{part.content}</span>;
+            if (part.type === 'cheermote') {
+              return <Cheermote key={i} name={part.name} amount={part.amount} />;
+            }
             const emote = part.emote;
             const url = getEmoteUrl(emote, '1x');
             const srcset = `${getEmoteUrl(emote, '2x')} 2x, ${getEmoteUrl(emote, '3x')} 3x`;
             const highResUrl = getEmoteUrl(emote, '3x');
+            const tooltipText = `${emote.text}\n${emote.source || 'Twitch'}`;
             return (
               <Tooltip 
                 key={i} 
-                text={emote.text} 
+                text={tooltipText} 
                 imageUrl={highResUrl}
                 className="chat-emote-container"
               >
