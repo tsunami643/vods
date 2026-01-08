@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../utils/constants';
 import { ChatContainer } from './chat';
@@ -20,6 +20,37 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function convertTime(input) {
+  if (input === null || input === undefined || input === '') return null;
+  
+  const inputStr = String(input);
+  
+  if (/[hms]/i.test(inputStr)) {
+    const hMatch = inputStr.match(/(\d+)h/i);
+    const mMatch = inputStr.match(/(\d+)m/i);
+    const sMatch = inputStr.match(/(\d+)s/i);
+    
+    const hours = hMatch ? parseInt(hMatch[1]) : 0;
+    const minutes = mMatch ? parseInt(mMatch[1]) : 0;
+    const seconds = sMatch ? parseInt(sMatch[1]) : 0;
+    
+    return (hours * 3600) + (minutes * 60) + seconds;
+  } else {
+    const seconds = parseInt(inputStr);
+    if (isNaN(seconds) || seconds < 0) return null;
+    
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    
+    let parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0 || parts.length === 0) parts.push(`${s}s`);
+    
+    return parts.join('');
+  }
+}
 
 function parseTimecode(ts) {
   const parts = ts.split(':').map(Number);
@@ -30,6 +61,7 @@ function parseTimecode(ts) {
 
 export default function VideoPage() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [video, setVideo] = useState(null);
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,9 +69,43 @@ export default function VideoPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [showPartDropdown, setShowPartDropdown] = useState(false);
+  const [initialTime, setInitialTime] = useState(null);
+  const [hideVideoInfo, setHideVideoInfo] = useState(false);
+  const [isWideChat, setIsWideChat] = useState(false);
+  const [pageTheme, setPageTheme] = useState(() => {
+    return localStorage.getItem('chatTheme') || 'blue';
+  });
   const playerRef = useRef(null);
   const descriptionRef = useRef(null);
-  const videoWrapperRef = useRef(null);
+  const hasInitializedRef = useRef(false);
+  const infoContainerRef = useRef(null);
+  const infoHeightRef = useRef(0);
+  const partSelectorRef = useRef(null);
+  const infoTouchRef = useRef({ time: 0, x: 0, y: 0 });
+
+  useEffect(() => {
+    const timeParam = searchParams.get('time');
+    if (timeParam) {
+      const seconds = convertTime(timeParam);
+      if (seconds && seconds > 0) {
+        setInitialTime(seconds);
+        hasInitializedRef.current = false;
+        return;
+      }
+    }
+    
+    try {
+      const saved = localStorage.getItem(`videoPlaybackState_${id}`);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (Date.now() - state.updatedAt < 7 * 24 * 60 * 60 * 1000) {
+          setInitialTime(Math.max(0, state.time - 5));
+        }
+      }
+    } catch {
+    }
+    hasInitializedRef.current = false;
+  }, [id, searchParams]);
 
   useEffect(() => {
     setLoading(true);
@@ -98,6 +164,9 @@ export default function VideoPage() {
           onReady: () => {
             if (cancelled) return;
             playerRef.current = player;
+            try {
+              player.playVideo?.();
+            } catch {}
             intervalId = setInterval(() => {
               if (cancelled || !playerRef.current) return;
               try {
@@ -123,12 +192,53 @@ export default function VideoPage() {
     };
   }, [video]);
 
-  const handleSeek = useCallback((time) => {
+  const updateUrlTime = useCallback((time) => {
+    if (time > 0) {
+      setSearchParams({ time: convertTime(time) }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [setSearchParams]);
+
+  const savePlaybackState = useCallback(() => {
+    if (!video || !playerRef.current) return;
+    
+    const time = playerRef.current.getCurrentTime?.() || currentTime;
+    const state = {
+      time: Math.floor(time),
+      updatedAt: Date.now()
+    };
+    
+    localStorage.setItem(`videoPlaybackState_${id}`, JSON.stringify(state));
+  }, [video, id, currentTime]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        savePlaybackState();
+      }
+    };
+    
+    const handleBeforeUnload = () => {
+      savePlaybackState();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [savePlaybackState]);
+
+  const handleSeek = useCallback((time, updateUrl = true) => {
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(time, true);
       setCurrentTime(time);
+      if (updateUrl) updateUrlTime(time);
     }
-  }, []);
+  }, [updateUrlTime]);
 
   useEffect(() => {
     if (!descriptionRef.current) return;
@@ -152,18 +262,78 @@ export default function VideoPage() {
     setShowPartDropdown(false);
   };
 
-  const handleToggleDescription = () => {
-    const newShowDescription = !showDescription;
-    setShowDescription(newShowDescription);
+  useEffect(() => {
+    if (!showPartDropdown) return;
     
-    if (newShowDescription && videoWrapperRef.current && window.innerWidth > 1100) {
-      setTimeout(() => {
-        if (videoWrapperRef.current) {
-          videoWrapperRef.current.scrollTop = videoWrapperRef.current.scrollHeight;
-        }
-      }, 50);
-    }
+    const handleClickOutside = (e) => {
+      if (partSelectorRef.current && !partSelectorRef.current.contains(e.target)) {
+        setShowPartDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showPartDropdown]);
+
+  const handleToggleDescription = () => {
+    setShowDescription(!showDescription);
   };
+
+  const handleToggleHideInfo = useCallback((hide) => {
+    setHideVideoInfo(hide);
+    if (hide && infoContainerRef.current) {
+      infoHeightRef.current = infoContainerRef.current.offsetHeight;
+    }
+  }, []);
+
+  const handleInfoTouchStart = useCallback((e) => {
+    const touch = e.changedTouches[0];
+    infoTouchRef.current = { ...infoTouchRef.current, startX: touch.screenX, startY: touch.screenY };
+  }, []);
+
+  const handleInfoTouchEnd = useCallback((e) => {
+    const touch = e.changedTouches[0];
+    const endX = touch.screenX;
+    const endY = touch.screenY;
+    const startX = infoTouchRef.current.startX || 0;
+    const startY = infoTouchRef.current.startY || 0;
+    
+    const TAP_MOVE_THRESHOLD = 10;
+    const DOUBLE_TAP_DELAY = 300;
+    const DOUBLE_TAP_DISTANCE = 30;
+    
+    const absX = Math.abs(endX - startX);
+    const absY = Math.abs(endY - startY);
+    
+    if (absX < TAP_MOVE_THRESHOLD && absY < TAP_MOVE_THRESHOLD) {
+      const now = Date.now();
+      const timeDiff = now - (infoTouchRef.current.time || 0);
+      const distX = Math.abs(endX - (infoTouchRef.current.x || 0));
+      const distY = Math.abs(endY - (infoTouchRef.current.y || 0));
+      
+      if (
+        timeDiff < DOUBLE_TAP_DELAY &&
+        distX < DOUBLE_TAP_DISTANCE &&
+        distY < DOUBLE_TAP_DISTANCE
+      ) {
+        setHideVideoInfo(true);
+        infoTouchRef.current = { time: 0, x: 0, y: 0 };
+        return;
+      }
+      
+      infoTouchRef.current = { time: now, x: endX, y: endY };
+    }
+  }, []);
+
+  const handleThemeChange = useCallback((theme) => {
+    setPageTheme(theme);
+    localStorage.setItem('chatTheme', theme);
+  }, []);
 
   const isStaleVideo = video && video.youtubeId !== id;
   if (loading || isStaleVideo) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
@@ -183,9 +353,9 @@ export default function VideoPage() {
     });
 
   return (
-    <div className="video-page">
+    <div className="video-page" data-theme={pageTheme}>
       <div className="video-content">
-        <div ref={videoWrapperRef} className={`video-wrapper ${showDescription ? 'description-shown' : ''}`}>
+        <div className={`video-wrapper ${isWideChat ? 'wide-chat' : ''}`}>
           <div className="compact-header">
             <Link to="/" className="header-logo-link">
               <img src={require('../images/logo.png')} alt="logo" className="header-logo" />
@@ -198,13 +368,18 @@ export default function VideoPage() {
               key={video.youtubeId}
               id={`yt-player-${video.youtubeId}`}
               title={video.name}
-              src={`https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
+              src={`https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`}
               allowFullScreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
           </div>
           
-          <div className="info-container" style={{ height: showDescription ? 'auto' : undefined }}>
+          <div 
+            ref={infoContainerRef}
+            className={`info-container ${showDescription ? 'expanded' : ''} ${hideVideoInfo ? 'hidden' : ''}`}
+            onTouchStart={handleInfoTouchStart}
+            onTouchEnd={handleInfoTouchEnd}
+          >
             <div className="info-topbar">
               <div className="video-metadata-container">
                 {playlist?.gameCover && (
@@ -232,21 +407,41 @@ export default function VideoPage() {
               
               <div className="video-controls">
                 {videos.length > 1 && (
-                  <div className="part-selector-container">
-                    <label>Part</label>
+                  <div className="part-selector-container" ref={partSelectorRef}>
+                    <label id="part-selector-label">Part</label>
                     <button 
                       className="part-selector-button"
+                      aria-haspopup="listbox"
+                      aria-expanded={showPartDropdown}
+                      aria-labelledby="part-selector-label"
                       onClick={() => setShowPartDropdown(!showPartDropdown)}
                     >
                       {partNumber} ▾
                     </button>
                     {showPartDropdown && (
-                      <div className="part-dropdown">
-                        {videos.map((v) => (
+                      <div 
+                        className="part-dropdown" 
+                        role="listbox" 
+                        aria-label="Select video part"
+                        tabIndex={0}
+                        ref={(el) => {
+                          if (el) {
+                            const activeItem = el.querySelector('.part-dropdown-item.active');
+                            if (activeItem) {
+                              activeItem.focus();
+                              activeItem.scrollIntoView({ block: 'nearest' });
+                            }
+                          }
+                        }}
+                      >
+                        {videos.map((v, idx) => (
                           <Link 
                             key={v.youtubeId}
                             to={`/video/${v.youtubeId}`}
                             className={`part-dropdown-item ${v.youtubeId === video.youtubeId ? 'active' : ''}`}
+                            role="option"
+                            aria-selected={v.youtubeId === video.youtubeId}
+                            tabIndex={v.youtubeId === video.youtubeId ? 0 : -1}
                             onClick={handlePartClick}
                           >
                             <div className="part-dropdown-thumb-container">
@@ -287,8 +482,8 @@ export default function VideoPage() {
               </div>
             </div>
             
-            {showDescription && hasDescription && (
-              <div className="video-description-container">
+            {hasDescription && (
+              <div className={`video-description-container ${showDescription ? 'show' : ''}`}>
                 <div 
                   ref={descriptionRef}
                   className="video-description"
@@ -306,6 +501,11 @@ export default function VideoPage() {
           isPlaying={isPlaying}
           onSeek={handleSeek}
           delayTime={3}
+          onThemeChange={handleThemeChange}
+          onHideVideoInfoChange={handleToggleHideInfo}
+          hideVideoInfo={hideVideoInfo}
+          theme={pageTheme}
+          onWideChatChange={setIsWideChat}
         />
       </div>
     </div>
