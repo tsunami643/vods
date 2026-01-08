@@ -1,9 +1,10 @@
 import { Box, Link, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faYoutube } from "@fortawesome/free-brands-svg-icons";
 import useGameBoxStyles from "../styles/useGameBoxStyles";
 
-const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams, onStreamsClick }) => {
+const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("mobileCard"));
 
@@ -12,7 +13,7 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams, onStreamsC
   const cleanDate = new Date(dateCompleted).toDateString().slice(4);
 
   function ytLink(){
-    if (streams == 1){
+    if (streams === 1){
       return `https://www.youtube.com/watch?v=${firstVideo}`
     }
     else {
@@ -61,31 +62,36 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams, onStreamsC
           <FontAwesomeIcon icon={faYoutube} />
         </Box>
       </Link>
-      <Box
-      display={"flex"}
-      flexDirection={"column"}
-      justifyContent={"center"}
-      alignItems={"center"}
-      flexBasis={"33.3333%"}
-      onClick={onStreamsClick}
-      className={classes.streamsHover}
-      style={{cursor:'pointer'}}
+      <RouterLink
+        to={`/playlist/${playlistId}`}
+        onClick={(e) => e.stopPropagation()}
+        style={{ textDecoration: 'none' }}
       >
-        <Typography
-          fontSize={mobile ? 11 : 13}
-          fontWeight={500}
-          color={theme.palette.text.primary}
+        <Box
+          display={"flex"}
+          flexDirection={"column"}
+          justifyContent={"center"}
+          alignItems={"center"}
+          flexBasis={"33.3333%"}
+          className={classes.streamsHover}
+          style={{cursor:'pointer'}}
         >
-          STREAMS
-        </Typography>
-        <Typography
-          fontSize={mobile ? 14 : 19}
-          fontWeight={700}
-          color={theme.palette.text.primary}
-        >
-          {streams}
-        </Typography>
+          <Typography
+            fontSize={mobile ? 11 : 13}
+            fontWeight={500}
+            color={theme.palette.text.primary}
+          >
+            STREAMS
+          </Typography>
+          <Typography
+            fontSize={mobile ? 14 : 19}
+            fontWeight={700}
+            color={theme.palette.text.primary}
+          >
+            {streams}
+          </Typography>
         </Box>
+      </RouterLink>
     </Box>
   );
 };
