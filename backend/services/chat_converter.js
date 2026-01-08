@@ -1,30 +1,32 @@
-/**
- * Chat converter service for processing Twitch chat logs
- * Currently returns data as-is, implementation to be added later
- */
+const { parseOrPassthrough, isAlreadyParsed, parseRawChatLog } = require('./chat_parser');
 
-/**
- * Converts Twitch chat log data to suitable format
- * @param {Object} chatData - Raw Twitch chat log data
- * @returns {Object} Converted chat data (currently same as input)
- */
 function convertChatData(chatData) {
-  // TODO: Implement actual conversion logic
-  // For now, just return the same data back
-  return chatData;
+  return parseOrPassthrough(chatData);
 }
 
-/**
- * Validates chat data structure
- * @param {Object} chatData - Chat data to validate
- * @returns {boolean} True if valid, false otherwise
- */
 function validateChatData(chatData) {
-  // Basic validation - ensure it's an object
-  return chatData && typeof chatData === 'object';
+  if (!chatData || typeof chatData !== 'object') return false;
+  
+  if (isAlreadyParsed(chatData)) {
+    return Array.isArray(chatData.chatList);
+  }
+  
+  if (Array.isArray(chatData)) {
+    if (chatData.length === 0) return true;
+    const first = chatData[0];
+    return first && (
+      typeof first.message === 'string' ||
+      typeof first.time_in_seconds === 'number'
+    );
+  }
+  
+  return false;
 }
 
 module.exports = {
   convertChatData,
-  validateChatData
-}; 
+  validateChatData,
+  parseRawChatLog,
+  parseOrPassthrough,
+  isAlreadyParsed
+};
