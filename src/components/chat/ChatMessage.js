@@ -155,6 +155,18 @@ function getTimestampClass(seconds) {
   return 'xlong-time';
 }
 
+function formatTimeForUrl(seconds) {
+  if (seconds === null || seconds === undefined || seconds < 0) return null;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  let parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  if (s > 0 || parts.length === 0) parts.push(`${s}s`);
+  return parts.join('');
+}
+
 export default function ChatMessage({ 
   message, 
   user, 
@@ -163,14 +175,18 @@ export default function ChatMessage({
   showTimestamps,
   showBadges,
   showBorder,
-  onSeek 
+  onSeek,
+  videoId 
 }) {
   const parts = parseMessageContent(message.message, message.emotes, emoteList);
   const displayBadges = message.badges ? message.badges.map(idx => badgeList[idx]).filter(Boolean) : [];
 
-  const handleTimestampClick = () => {
+  const handleTimestampClick = (e) => {
+    e.preventDefault();
     if (onSeek) onSeek(message.time);
   };
+
+  const timestampUrl = videoId ? `/vods/video/${videoId}?time=${formatTimeForUrl(message.time)}` : '#';
 
   const messageStyle = showBorder ? { borderBottom: '1px solid rgba(255,255,255,0.1)' } : {};
 
@@ -178,9 +194,14 @@ export default function ChatMessage({
     <div className="chat-message" style={messageStyle}>
       {showTimestamps && (
         <span className={`chat-timestamp ${getTimestampClass(message.time)}`}>
-          <button type="button" onClick={handleTimestampClick} title="Jump to timestamp" className="timestamp-link">
+          <a 
+            href={timestampUrl} 
+            onClick={handleTimestampClick} 
+            title="Jump to timestamp" 
+            className="timestamp-link"
+          >
             {formatTimestamp(message.time)}
-          </button>
+          </a>
         </span>
       )}
       <span className="chat-data">

@@ -337,7 +337,7 @@
 
 .timestamp-link {
   font-size: 0.86em;
-  color: #efeff1;
+  color: var(--chat-text-color, #efeff1);
   text-decoration: none;
   white-space: nowrap;
   background: none;
@@ -345,6 +345,7 @@
   padding: 0;
   cursor: pointer;
   font-family: inherit;
+  display: inline-block;
 }
 
 .timestamp-link:hover {

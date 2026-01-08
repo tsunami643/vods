@@ -5,7 +5,7 @@ import { API_URL } from '../../utils/constants';
 import '../../styles/ChatContainer.css';
 
 const PRELOAD_AHEAD_SECONDS = 600;
-const SCREEN_LIMIT = 500;
+const SCREEN_LIMIT = 100;
 
 /**
  * Binary search to find the index of the first message with time > targetTime
@@ -72,6 +72,7 @@ function mergeSortedMessages(existing, newMessages) {
 
 export default function ChatContainer({ 
   videoId, 
+  youtubeVideoId,
   currentTime, 
   isPlaying,
   onSeek,
@@ -143,6 +144,7 @@ export default function ChatContainer({
   const lastRealTimeUpdateRef = useRef(0);
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
+  const seekingRef = useRef(false);
 
   useEffect(() => {
     const vid = videoId;
@@ -310,7 +312,7 @@ export default function ChatContainer({
     }
     
     return processedMessages;
-  }, []);
+  }, [preloadImages]);
 
   const isRangeLoaded = useCallback((start, end) => {
     for (const range of loadedRangesRef.current) {
@@ -404,25 +406,31 @@ export default function ChatContainer({
     lastRealTimeUpdateRef.current = now;
     
     if (isSeek) {
+      if (seekingRef.current) return;
+      seekingRef.current = true;
+      
       setSeekLoading(true);
-      setDisplayedMessages([]);
       pendingScrollRef.current = true;
       lastLoadCheckTimeRef.current = adjustedTime;
+      lastSyncTimeRef.current = adjustedTime;
       
       if (pendingLoadRef.current) {
         clearTimeout(pendingLoadRef.current);
         pendingLoadRef.current = null;
       }
       
+      // Load ALL messages from 0 to current time + buffer (fills in any gaps)
       const loadEnd = adjustedTime + PRELOAD_AHEAD_SECONDS;
       loadTimeRange(0, loadEnd, vid).then(() => {
+        seekingRef.current = false;
         if (mountedVideoIdRef.current !== vid) return;
         
-        // Get all messages for this video (already sorted by time in allMessages)
+        // Use videoMessages (already filtered by videoId and sorted)
         const validMessages = Array.from(messageMapRef.current.values())
           .filter(m => m._videoId === vid);
         validMessages.sort((a, b) => a.time - b.time);
         
+        // Find messages up to current time, display last SCREEN_LIMIT
         const cutoffIndex = binarySearchByTime(validMessages, adjustedTime);
         const startIndex = Math.max(0, cutoffIndex - SCREEN_LIMIT);
         const toShow = validMessages.slice(startIndex, cutoffIndex);
@@ -430,19 +438,21 @@ export default function ChatContainer({
         setDisplayedMessages(toShow);
         setIsUserAtBottom(true);
         setUnseenMessages(0);
-        lastSyncTimeRef.current = adjustedTime;
+      }).catch(() => {
+        seekingRef.current = false;
       });
       return;
     }
     
     lastSyncTimeRef.current = adjustedTime;
     
+    // Preload ahead - check every 30 seconds of video time
     const loadEnd = adjustedTime + PRELOAD_AHEAD_SECONDS;
     const timeSinceLastLoadCheck = adjustedTime - lastLoadCheckTimeRef.current;
     if (timeSinceLastLoadCheck >= 30 || lastLoadCheckTimeRef.current < 0) {
-      if (!isRangeLoaded(Math.max(0, adjustedTime - 60), loadEnd)) {
+      if (!isRangeLoaded(0, loadEnd)) {
         lastLoadCheckTimeRef.current = adjustedTime;
-        loadTimeRange(Math.max(0, adjustedTime - 60), loadEnd, vid);
+        loadTimeRange(0, loadEnd, vid);
       }
     }
     
@@ -452,18 +462,15 @@ export default function ChatContainer({
     
     setDisplayedMessages(prev => {
       const prevValid = prev.filter(m => m._videoId === vid);
-      
-      // If going backward in time, we need to remove future messages
-      const lastPrevTime = prevValid.length > 0 ? prevValid[prevValid.length - 1].time : 0;
-      const isRewind = lastPrevTime > adjustedTime + 1;
-      
-      if (isRewind) {
-        // Rewind - show only messages up to current time
-        return toShow;
-      }
-      
       if (toShow.length === 0 && prevValid.length === 0) return toShow;
       
+      const prevLastTime = prevValid.length > 0 ? prevValid[prevValid.length - 1].time : -1;
+      const toShowLastTime = toShow.length > 0 ? toShow[toShow.length - 1].time : -1;
+      
+      if (toShowLastTime < prevLastTime || toShow.length !== prevValid.length) {
+        return toShow;
+      }
+
       const prevIds = new Set(prevValid.map(m => m._id));
       const newMessages = toShow.filter(m => !prevIds.has(m._id));
       
@@ -473,8 +480,7 @@ export default function ChatContainer({
         } else {
           pendingScrollRef.current = true;
         }
-        const combined = mergeSortedMessages(prevValid, newMessages);
-        return combined.slice(-SCREEN_LIMIT);
+        return toShow;
       }
       
       return prev;
@@ -526,7 +532,7 @@ export default function ChatContainer({
           const startIndex = Math.max(0, cutoffIndex - 100);
           const toAdd = videoMessages.slice(startIndex, cutoffIndex);
           const prevScrollHeight = messagesRef.current.scrollHeight;
-          setDisplayedMessages(prev => mergeSortedMessages(toAdd, prev).slice(-SCREEN_LIMIT - 100));
+          setDisplayedMessages(prev => mergeSortedMessages(toAdd, prev));
           requestAnimationFrame(() => {
             if (messagesRef.current) {
               messagesRef.current.scrollTop = messagesRef.current.scrollHeight - prevScrollHeight;
@@ -534,8 +540,7 @@ export default function ChatContainer({
           });
         } else if (firstTime > 60) {
           setLoadingMore(true);
-          const loadStart = Math.max(0, firstTime - 300);
-          loadTimeRange(loadStart, firstTime, vid).then(() => {
+          loadTimeRange(0, firstTime, vid).then(() => {
             if (mountedVideoIdRef.current !== vid) return;
             setLoadingMore(false);
           });
@@ -904,6 +909,7 @@ export default function ChatContainer({
             showBadges={showBadges}
             showBorder={showBorders}
             onSeek={onSeek}
+            videoId={youtubeVideoId}
           />
         ))}
         {seekLoading && (

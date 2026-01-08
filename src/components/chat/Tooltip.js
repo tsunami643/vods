@@ -21,7 +21,6 @@ export default function Tooltip({ children, text, imageUrl = null, className = '
     let arrowLeft = 50;
     
     if (left < 4) {
-      const adjustment = 4 - left;
       left = 4;
       arrowLeft = ((elementCenter - left) / tooltipRect.width) * 100;
     }

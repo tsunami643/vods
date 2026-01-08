@@ -20,36 +20,33 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function convertTime(input) {
+function parseTimeToSeconds(input) {
   if (input === null || input === undefined || input === '') return null;
-  
   const inputStr = String(input);
   
   if (/[hms]/i.test(inputStr)) {
     const hMatch = inputStr.match(/(\d+)h/i);
     const mMatch = inputStr.match(/(\d+)m/i);
     const sMatch = inputStr.match(/(\d+)s/i);
-    
-    const hours = hMatch ? parseInt(hMatch[1]) : 0;
-    const minutes = mMatch ? parseInt(mMatch[1]) : 0;
-    const seconds = sMatch ? parseInt(sMatch[1]) : 0;
-    
-    return (hours * 3600) + (minutes * 60) + seconds;
-  } else {
-    const seconds = parseInt(inputStr);
-    if (isNaN(seconds) || seconds < 0) return null;
-    
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    
-    let parts = [];
-    if (h > 0) parts.push(`${h}h`);
-    if (m > 0) parts.push(`${m}m`);
-    if (s > 0 || parts.length === 0) parts.push(`${s}s`);
-    
-    return parts.join('');
+    return (hMatch ? parseInt(hMatch[1]) : 0) * 3600 +
+           (mMatch ? parseInt(mMatch[1]) : 0) * 60 +
+           (sMatch ? parseInt(sMatch[1]) : 0);
   }
+  
+  const asNumber = parseInt(inputStr);
+  return (!isNaN(asNumber) && asNumber >= 0) ? asNumber : null;
+}
+
+function formatTimeForUrl(seconds) {
+  if (seconds === null || seconds === undefined || seconds < 0) return null;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  let parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  if (s > 0 || parts.length === 0) parts.push(`${s}s`);
+  return parts.join('');
 }
 
 function parseTimecode(ts) {
@@ -73,7 +70,7 @@ export default function VideoPage() {
   const [initialTime, setInitialTime] = useState(null);
   const [hideVideoInfo, setHideVideoInfo] = useState(false);
   const [isWideChat, setIsWideChat] = useState(false);
-  const [currentPlaylistIndex, setCurrentPlaylistIndex] = useState(-1);
+  const [, setCurrentPlaylistIndex] = useState(-1);
   const [pageTheme, setPageTheme] = useState(() => {
     return localStorage.getItem('chatTheme') || 'blue';
   });
@@ -87,17 +84,18 @@ export default function VideoPage() {
   const playlistVideosRef = useRef([]);
 
   useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
-    
     const timeParam = searchParams.get('time');
     if (timeParam) {
-      const seconds = convertTime(timeParam);
-      if (seconds && seconds > 0) {
+      const seconds = parseTimeToSeconds(timeParam);
+      if (seconds !== null && seconds >= 0) {
         setInitialTime(seconds);
+        hasInitializedRef.current = true;
         return;
       }
     }
+    
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
     
     try {
       const saved = localStorage.getItem(`videoPlaybackState_${id}`);
@@ -139,13 +137,11 @@ export default function VideoPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Stable ref for current video youtubeId to use in message handler
   const currentVideoIdRef = useRef(video?.youtubeId);
   useEffect(() => {
     currentVideoIdRef.current = video?.youtubeId;
   }, [video?.youtubeId]);
 
-  // Player initialization - only depends on playlist, not video
   useEffect(() => {
     if (!playlist && !video) return;
     
@@ -171,7 +167,6 @@ export default function VideoPage() {
       });
     }
 
-    // Listen for YouTube postMessage events (playlist video changes via YT controls)
     const handleYTMessage = (event) => {
       if (event.origin !== 'https://www.youtube.com') return;
       
@@ -189,12 +184,12 @@ export default function VideoPage() {
         if (videos.length > 0 && newIndex >= 0 && newIndex < videos.length) {
           const newVideo = videos[newIndex];
           if (newVideo?.youtubeId && newVideo.youtubeId !== currentVideoIdRef.current) {
-            // Update state instead of navigating - smoother transition
+
             setVideo(newVideo);
             setCurrentPlaylistIndex(newIndex);
             setCurrentTime(0);
             setShowDescription(false);
-            // Update URL without navigation
+
             window.history.replaceState(null, '', `/vods/video/${newVideo.youtubeId}`);
             setSearchParams({}, { replace: true });
           }
@@ -212,7 +207,6 @@ export default function VideoPage() {
       const iframe = document.getElementById(`yt-player-${iframeId}`);
       if (!iframe || cancelled) return;
       
-      // Skip if player already exists
       if (playerRef.current) return;
       
       player = new window.YT.Player(iframe, {
@@ -247,11 +241,12 @@ export default function VideoPage() {
       window.removeEventListener('message', handleYTMessage);
       playerRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playlist?.youtubeId, setSearchParams]);
 
   const updateUrlTime = useCallback((time) => {
     if (time > 0) {
-      setSearchParams({ time: convertTime(time) }, { replace: true });
+      setSearchParams({ time: formatTimeForUrl(time) }, { replace: true });
     } else {
       setSearchParams({}, { replace: true });
     }
@@ -319,25 +314,20 @@ export default function VideoPage() {
     e.preventDefault();
     setShowPartDropdown(false);
     
-    // Use playVideoAt to switch videos within the playlist without page reload
     if (playerRef.current?.playVideoAt && playlist?.videos?.length > 1) {
       playerRef.current.playVideoAt(index);
       
-      // Update URL without triggering navigation
       window.history.replaceState(null, '', `/vods/video/${videoId}`);
       
-      // Update state to reflect new video
       const newVideo = playlist.videos[index];
       if (newVideo) {
         setVideo(newVideo);
         setCurrentPlaylistIndex(index);
         setCurrentTime(0);
         setShowDescription(false);
-        // Clear time param from URL state
         setSearchParams({}, { replace: true });
       }
     } else {
-      // Fallback to navigation if playVideoAt not available
       navigate(`/video/${videoId}`);
     }
   };
@@ -369,19 +359,15 @@ export default function VideoPage() {
       const containerEl = descriptionEl.parentElement;
       
       if (newShowDescription) {
-        // Calculate if scrollbar is needed
         const descStyle = getComputedStyle(descriptionEl);
         const margin = parseFloat(descStyle.marginTop) + parseFloat(descStyle.marginBottom);
         const contentHeight = descriptionEl.offsetHeight + margin;
         
-        // 200px is the max-height for desktop, 70px for mobile
         const isMobile = window.innerWidth <= 1100;
         const maxHeight = isMobile ? 70 : 200;
         
-        // Only enable scrolling if content exceeds max height
         containerEl.style.overflow = contentHeight <= maxHeight ? 'hidden' : 'auto';
       } else {
-        // Reset overflow when hiding
         containerEl.style.overflow = 'hidden';
       }
     }
@@ -438,7 +424,6 @@ export default function VideoPage() {
     localStorage.setItem('chatTheme', theme);
   }, []);
 
-  // Only show loading on initial load, not when switching parts via playVideoAt
   if (loading) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
   if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Video not found</div>;
 
@@ -452,7 +437,8 @@ export default function VideoPage() {
     ?.replace(/https?:\/\/\S+/g, url => `<a class="description-link" target="_blank" rel="noopener noreferrer" href="${url}">${url}</a>`)
     .replace(/\b(\d{1,2}:)?(\d{1,2}):(\d{2})\b/g, (match) => {
       const seconds = parseTimecode(match);
-      return `<button type="button" class="description-link timecode" data-seek="${seconds}">${match}</button>`;
+      const timeStr = formatTimeForUrl(seconds);
+      return `<a href="/vods/video/${id}?time=${timeStr}" class="description-link timecode" data-seek="${seconds}">${match}</a>`;
     });
 
   return (
@@ -474,10 +460,8 @@ export default function VideoPage() {
               src={(() => {
                 const hasPlaylist = playlist?.youtubeId && videos.length > 1;
                 if (hasPlaylist) {
-                  // Load as playlist with YouTube's built-in playlist controls
                   return `https://www.youtube.com/embed?listType=playlist&list=${playlist.youtubeId}&index=${currentIndex + 1}&enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`;
                 }
-                // Single video
                 return `https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`;
               })()}
               allowFullScreen
@@ -599,6 +583,12 @@ export default function VideoPage() {
                   ref={descriptionRef}
                   className="video-description"
                   dangerouslySetInnerHTML={{ __html: formattedDescription }}
+                  onClick={(e) => {
+                    if (e.target.classList.contains('timecode') && e.target.dataset.seek) {
+                      e.preventDefault();
+                      handleSeek(parseInt(e.target.dataset.seek, 10));
+                    }
+                  }}
                 />
               </div>
             )}
@@ -608,6 +598,7 @@ export default function VideoPage() {
         <ChatContainer
           key={video.id}
           videoId={video.id}
+          youtubeVideoId={video.youtubeId}
           currentTime={currentTime}
           isPlaying={isPlaying}
           onSeek={handleSeek}
