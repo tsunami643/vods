@@ -93,6 +93,11 @@ const App = () => {
     });
   }, []);
 
+  const clearSearch = useCallback(() => {
+    setSearchInput("");
+    setSearchKey((k) => k + 1);
+  }, []);
+
   const removeTag = useCallback((tag) => {
     setTagArray((prev) => prev.filter((t) => t !== tag));
   }, []);
@@ -146,7 +151,7 @@ const App = () => {
                   <GameBoxSkeleton />
                 ) : searchResults.length ? (
                   searchResults.map((gameData, index) => (
-                    <GameBox data={gameData} addTag={addTag} key={index} />
+                    <GameBox data={gameData} addTag={addTag} clearSearch={clearSearch} key={index} />
                   ))
                 ) : (
                   <Typography variant="h5" padding={3}>

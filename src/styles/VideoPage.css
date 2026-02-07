@@ -42,6 +42,23 @@
   background: var(--page-bg);
 }
 
+/* Prevent any scrolling when video page is in fullscreen */
+.video-page:fullscreen {
+  overflow: hidden !important;
+}
+
+.video-page:-webkit-full-screen {
+  overflow: hidden !important;
+}
+
+.video-page:-moz-full-screen {
+  overflow: hidden !important;
+}
+
+.video-page:-ms-fullscreen {
+  overflow: hidden !important;
+}
+
 .compact-header {
   display: flex;
   align-items: center;

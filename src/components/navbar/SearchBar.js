@@ -85,6 +85,8 @@ const SearchBar = ({ handleSearch, tags, onRemoveTag }) => {
         }
         id="Searchbar"
         type="search"
+        autoComplete="off"
+        value={searchInput}
         sx={{ borderRadius: "60px", marginLeft: -1, paddingRight: 3 }}
         onChange={(e) => setSearchInput(e.target.value)}
         label="Search for games..."

@@ -76,7 +76,7 @@ export default function ChatContainer({
   currentTime, 
   isPlaying,
   onSeek,
-  delayTime = 3,
+  delayTime = 2,
   onThemeChange,
   onHideVideoInfoChange,
   hideVideoInfo = false,
@@ -509,10 +509,31 @@ export default function ChatContainer({
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      
+      // Prevent body scrolling when in fullscreen on mobile
+      if (isNowFullscreen) {
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+      } else {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+      }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      // Cleanup on unmount
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    };
   }, []);
 
   const scrollPreserveRef = useRef(null);
@@ -934,6 +955,7 @@ export default function ChatContainer({
             showBorder={showBorders}
             onSeek={onSeek}
             videoId={youtubeVideoId}
+            chatDelay={delayTime}
           />
         ))}
         {seekLoading && (

@@ -138,28 +138,30 @@ function parseCheermotes(text) {
   return parts;
 }
 
-function formatTimestamp(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
+function formatTimestamp(seconds, chatDelay = 0) {
+  const adjusted = Math.floor(seconds + chatDelay);
+  const h = Math.floor(adjusted / 3600);
+  const m = Math.floor((adjusted % 3600) / 60);
+  const s = adjusted % 60;
 
   if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function getTimestampClass(seconds) {
-  const formatted = formatTimestamp(seconds);
+function getTimestampClass(seconds, chatDelay = 0) {
+  const formatted = formatTimestamp(seconds, chatDelay);
   if (formatted.length <= 4) return 'short-time';
   if (formatted.length === 5) return 'medium-time';
   if (formatted.length === 7) return 'long-time';
   return 'xlong-time';
 }
 
-function formatTimeForUrl(seconds) {
+function formatTimeForUrl(seconds, chatDelay = 0) {
   if (seconds === null || seconds === undefined || seconds < 0) return null;
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
+  const adjusted = Math.floor(seconds + chatDelay);
+  const h = Math.floor(adjusted / 3600);
+  const m = Math.floor((adjusted % 3600) / 60);
+  const s = Math.floor(adjusted % 60);
   let parts = [];
   if (h > 0) parts.push(`${h}h`);
   if (m > 0) parts.push(`${m}m`);
@@ -176,31 +178,33 @@ export default function ChatMessage({
   showBadges,
   showBorder,
   onSeek,
-  videoId 
+  videoId,
+  chatDelay = 0
 }) {
   const parts = parseMessageContent(message.message, message.emotes, emoteList);
   const displayBadges = message.badges ? message.badges.map(idx => badgeList[idx]).filter(Boolean) : [];
 
   const handleTimestampClick = (e) => {
     e.preventDefault();
-    if (onSeek) onSeek(message.time);
+    // Seek to timestamp + 1 so the clicked message stays visible in chat
+    if (onSeek) onSeek(Math.floor(message.time + chatDelay) + 1);
   };
 
-  const timestampUrl = videoId ? `/vods/video/${videoId}?time=${formatTimeForUrl(message.time)}` : '#';
+  const timestampUrl = videoId ? `/vods/video/${videoId}?time=${formatTimeForUrl(message.time, chatDelay)}` : '#';
 
   const messageStyle = showBorder ? { borderBottom: '1px solid rgba(255,255,255,0.1)' } : {};
 
   return (
     <div className="chat-message" style={messageStyle}>
       {showTimestamps && (
-        <span className={`chat-timestamp ${getTimestampClass(message.time)}`}>
+        <span className={`chat-timestamp ${getTimestampClass(message.time, chatDelay)}`}>
           <a 
             href={timestampUrl} 
             onClick={handleTimestampClick} 
             title="Jump to timestamp" 
             className="timestamp-link"
           >
-            {formatTimestamp(message.time)}
+            {formatTimestamp(message.time, chatDelay)}
           </a>
         </span>
       )}

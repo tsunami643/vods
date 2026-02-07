@@ -59,14 +59,13 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
       <RouterLink
         to={`/playlist/${playlistId}`}
         onClick={(e) => e.stopPropagation()}
-        style={{ textDecoration: 'none' }}
+        style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', flexBasis: '33.3333%' }}
       >
         <Box
           display={"flex"}
           flexDirection={"column"}
           justifyContent={"center"}
           alignItems={"center"}
-          flexBasis={"33.3333%"}
           className={classes.streamsHover}
           style={{cursor:'pointer'}}
         >

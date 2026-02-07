@@ -10,11 +10,12 @@ import {
 import useGameBoxStyles from "../styles/useGameBoxStyles";
 import StreamInfo from "./StreamInfo";
 
-const GameBox = ({ data, addTag }) => {
+const GameBox = ({ data, addTag, clearSearch }) => {
   const classes = useGameBoxStyles();
 
   const handleTagClick = (tag) => (e) => {
     e.stopPropagation();
+    if (clearSearch) clearSearch();
     addTag(tag);
   };
 
@@ -22,7 +23,7 @@ const GameBox = ({ data, addTag }) => {
     <Card className={classes.card}>
       <CardMedia
         component="img"
-        image={`${data.gameCover}`}
+        image={data.gameCover}
         alt={`${data.gameName} Cover`}
         className={classes.cardMedia}
       />

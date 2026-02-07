@@ -28,6 +28,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const pool = require('../backend/db/connection');
 const { saveChatData } = require('../backend/services/chat_db');
+const { getGameCoverUrl } = require('../backend/utils/gameCover');
 
 const PARSECHAT_TEST_DATA = path.join(__dirname, '../../parseChat/test_data');
 
@@ -140,8 +141,8 @@ async function importPlaylistFromParseChat(playlistName, existingStreamId = null
     }
     
     // Create or update stream entry
-    // Use actual video count (countOverride in parseChat data is for display purposes there)
-    const streamCount = playlist.videos.length;
+    // countOverride is a negative INT that should be added to videos.length
+    const streamCount = playlist.videos.length + (playlist.countOverride || 0);
     
     const dateCompleted = playlist.dateOverride 
       ? new Date(playlist.dateOverride) 
