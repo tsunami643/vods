@@ -14,8 +14,12 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
 
   const getLastPlayedVideo = () => {
     if (!playlistId) return firstVideo;
-    const lastPlayed = localStorage.getItem(`lastPlayedVideo_${playlistId}`);
-    return lastPlayed || firstVideo;
+    const lastPlaylist = localStorage.getItem('lastPlayedPlaylist');
+    if (lastPlaylist === playlistId) {
+      const lastVideo = localStorage.getItem('lastPlayedVideo');
+      if (lastVideo) return lastVideo;
+    }
+    return firstVideo;
   };
 
   return (

@@ -244,18 +244,6 @@
   }
 }
 
-@media (max-width: 1100px) and (orientation: portrait) {
-  .chat-container.wide-chat {
-    flex: 1 1 70%;
-  }
-}
-
-@media (max-width: 1100px) and (orientation: landscape) {
-  .chat-container.wide-chat {
-    flex: 1 1 50%;
-  }
-}
-
 .toggle-switch {
   position: relative;
   width: 40px;
@@ -609,6 +597,12 @@
     max-width: 100dvw !important;
     border-left: none;
     border-top: 1px solid #333;
+    transition: flex 0.3s ease, min-height 0.3s ease;
+  }
+  
+  .chat-container.wide-chat {
+    flex: 1 1 70%;
+    min-height: 350px;
   }
   
   .chat-resize-handle {
@@ -620,6 +614,11 @@
   .chat-container {
     min-width: 120px !important;
     width: 320px !important;
+    transition: width 0.3s ease;
+  }
+  
+  .chat-container.wide-chat {
+    width: 50% !important;
   }
   
   .chat-resize-handle {

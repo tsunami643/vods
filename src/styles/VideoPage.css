@@ -185,8 +185,11 @@ a.game-cover {
 
 .game-cover-img {
   height: 100%;
+  width: auto;
+  max-width: none;
   border-radius: 4px;
   transition: opacity 0.2s ease;
+  object-fit: contain;
 }
 
 .game-cover-overlay {

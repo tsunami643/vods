@@ -202,6 +202,24 @@ export default function ChatContainer({
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const emoteSize = dpr >= 2 ? '2x' : '1x';
     
+    const CHEERMOTE_NAMES = [
+      'cheer', 'doodlecheer', 'biblethump', 'cheerwhal', 'corgo', 'scoops', 'uni',
+      'showlove', 'party', 'seemsgood', 'pride', 'kappa', 'frankerz', 'heyguys',
+      'dansgame', 'elegiggle', 'trihard', 'kreygasm', '4head', 'swiftrage',
+      'notlikethis', 'failfish', 'vohiyo', 'pjsalt', 'mrdestructoid', 'bday',
+      'ripcheer', 'shamrock', 'bitboss', 'streamlabs', 'muxy', 'holidaycheer',
+      'goal', 'anon', 'charity'
+    ];
+    const CHEERMOTE_REGEX = new RegExp(`(?<!\\w)(${CHEERMOTE_NAMES.join('|')})(\\d+)(?!\\w)`, 'gi');
+    
+    const getCheermoteTier = (amount) => {
+      if (amount >= 10000) return '10000';
+      if (amount >= 5000) return '5000';
+      if (amount >= 1000) return '1000';
+      if (amount >= 100) return '100';
+      return '1';
+    };
+    
     messages.forEach(msg => {
       // Preload emotes
       if (msg.emotes) {
@@ -242,6 +260,29 @@ export default function ChatContainer({
           const img = new Image();
           img.src = `https://static-cdn.jtvnw.net/badges/v1/${badge.url}/1`;
         });
+      }
+      
+      if (msg.message) {
+        CHEERMOTE_REGEX.lastIndex = 0;
+        let match;
+        const preloadedCheers = new Set(); // Avoid duplicate preloads
+        
+        while ((match = CHEERMOTE_REGEX.exec(msg.message)) !== null) {
+          const name = match[1].toLowerCase();
+          const amount = parseInt(match[2], 10);
+          const tier = getCheermoteTier(amount);
+          const key = `${name}-${tier}`;
+          
+          if (!preloadedCheers.has(key)) {
+            preloadedCheers.add(key);
+            
+            const baseUrl = `https://d3aqoihi2n8ty8.cloudfront.net/actions/${name}/dark/animated/${tier}/`;
+            ['1.gif', '2.gif', '4.gif'].forEach(file => {
+              const img = new Image();
+              img.src = baseUrl + file;
+            });
+          }
+        }
       }
     });
   }, [emoteList, badgeList]);
@@ -408,6 +449,8 @@ export default function ChatContainer({
     if (isSeek) {
       if (seekingRef.current) return;
       seekingRef.current = true;
+      
+      setSettingsOpen(false);
       
       setSeekLoading(true);
       pendingScrollRef.current = true;
@@ -705,6 +748,28 @@ export default function ChatContainer({
     localStorage.setItem('chatTheme', chatTheme);
     if (onThemeChange) onThemeChange(chatTheme);
   }, [chatTheme, onThemeChange]);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    
+    const handleClickOutside = (e) => {
+      const settingsButton = e.target.closest('.header-button[title="Settings"]');
+      const settingsPanel = e.target.closest('.settings-panel');
+      
+      if (!settingsButton && !settingsPanel) {
+        setSettingsOpen(false);
+      }
+    };
+    
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [settingsOpen]);
 
   // Resize handler
   const handleResizeStart = useCallback((e) => {

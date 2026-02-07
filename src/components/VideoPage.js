@@ -93,30 +93,33 @@ export default function VideoPage() {
       lastInitializedIdRef.current = id;
     }
     
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
-    
     const timeParam = searchParams.get('time');
     if (timeParam) {
       const seconds = parseTimeToSeconds(timeParam);
       if (seconds !== null && seconds >= 0) {
         setInitialTime(seconds);
+        if (!hasInitializedRef.current) {
+          hasInitializedRef.current = true;
+        }
         return;
       }
     }
     
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    
     try {
-      const saved = localStorage.getItem(`videoPlaybackState_${id}`);
+      const saved = localStorage.getItem('videoPlaybackState');
       if (saved) {
         const state = JSON.parse(saved);
-        // if (Date.now() - state.updatedAt < 7 * 24 * 60 * 60 * 1000) {
-        setInitialTime(Math.max(0, state.time - 5));
-        // }
+        if (state.videoId === id) {
+          setInitialTime(Math.max(0, state.time - 5));
+        }
       }
     } catch {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, searchParams]);
 
   const isPartSwitchRef = useRef(false);
   
@@ -158,6 +161,8 @@ export default function VideoPage() {
     currentVideoIdRef.current = video?.youtubeId;
   }, [video?.youtubeId]);
 
+  const lastProcessedTimeRef = useRef(0);
+  
   useEffect(() => {
     if (!playlist && !video) return;
     
@@ -242,7 +247,20 @@ export default function VideoPage() {
             }, 200);
           },
           onStateChange: (ev) => {
-            if (!cancelled) setIsPlaying(ev.data === window.YT.PlayerState.PLAYING);
+            if (cancelled) return;
+            
+            const state = ev.data;
+            setIsPlaying(state === window.YT.PlayerState.PLAYING);
+            
+            if (state === window.YT.PlayerState.BUFFERING) {
+              try {
+                const currentTime = playerRef.current?.getCurrentTime?.() || 0;
+                if (Math.abs(currentTime - lastProcessedTimeRef.current) >= 2) {
+                  setShowPartDropdown(false);
+                }
+                lastProcessedTimeRef.current = currentTime;
+              } catch {}
+            }
           }
         }
       });
@@ -273,11 +291,12 @@ export default function VideoPage() {
     
     const time = playerRef.current.getCurrentTime?.() || currentTime;
     const state = {
+      videoId: id,
       time: Math.floor(time),
       updatedAt: Date.now()
     };
     
-    localStorage.setItem(`videoPlaybackState_${id}`, JSON.stringify(state));
+    localStorage.setItem('videoPlaybackState', JSON.stringify(state));
   }, [video, id, currentTime]);
 
   useEffect(() => {
@@ -308,17 +327,23 @@ export default function VideoPage() {
 
   useEffect(() => {
     if (!video?.youtubeId || !playlist?.youtubeId) return;
-    localStorage.setItem(`lastPlayedVideo_${playlist.youtubeId}`, video.youtubeId);
+    localStorage.setItem('lastPlayedVideo', video.youtubeId);
+    localStorage.setItem('lastPlayedPlaylist', playlist.youtubeId);
   }, [video?.youtubeId, playlist?.youtubeId]);
 
   const handleSeek = useCallback((time, updateUrl = true) => {
     if (playerRef.current?.seekTo) {
+      const timeDiff = Math.abs(time - currentTime);
+      if (timeDiff >= 2) {
+        setShowPartDropdown(false);
+      }
+      
       playerRef.current.seekTo(time, true);
       setCurrentTime(time);
       if (updateUrl) updateUrlTime(time);
       savePlaybackState();
     }
-  }, [updateUrlTime, savePlaybackState]);
+  }, [currentTime, updateUrlTime, savePlaybackState]);
 
   useEffect(() => {
     if (!descriptionRef.current) return;
@@ -492,12 +517,14 @@ export default function VideoPage() {
     <div className="video-page" data-theme={pageTheme}>
       <div className="video-content">
         <div className={`video-wrapper ${isWideChat ? 'wide-chat' : ''}`}>
-          <div className="compact-header">
-            <Link to="/" className="header-logo-link">
-              <img src={require('../images/logo.png')} alt="logo" className="header-logo" />
-              <span className="header-site-name">tsunami's twitch vods</span>
-            </Link>
-          </div>
+          {!hideVideoInfo && (
+            <div className="compact-header">
+              <Link to="/" className="header-logo-link">
+                <img src={require('../images/logo.png')} alt="logo" className="header-logo" />
+                <span className="header-site-name">tsunami's twitch vods</span>
+              </Link>
+            </div>
+          )}
           
           <div className="youtube-player-container">
             <iframe

@@ -28,7 +28,6 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const pool = require('../backend/db/connection');
 const { saveChatData } = require('../backend/services/chat_db');
-const { getGameCoverUrl } = require('../backend/utils/gameCover');
 
 const PARSECHAT_TEST_DATA = path.join(__dirname, '../../parseChat/test_data');
 
@@ -144,6 +143,10 @@ async function importPlaylistFromParseChat(playlistName, existingStreamId = null
     // countOverride is a negative INT that should be added to videos.length
     const streamCount = playlist.videos.length + (playlist.countOverride || 0);
     
+    const gameCoverValue = playlist.gameCover 
+      ? (Array.isArray(playlist.gameCover) ? JSON.stringify(playlist.gameCover) : playlist.gameCover)
+      : null;
+    
     const dateCompleted = playlist.dateOverride 
       ? new Date(playlist.dateOverride) 
       : (playlist.videos.length > 0 && playlist.videos[playlist.videos.length - 1].publishedAt 
@@ -162,7 +165,7 @@ async function importPlaylistFromParseChat(playlistName, existingStreamId = null
           playlistId,
           videoIds[0],
           streamCount,
-          playlist.gameCover || null,
+          gameCoverValue,
           dateCompleted,
           JSON.stringify(playlist.tags || []),
           existingStreamId
@@ -198,7 +201,7 @@ async function importPlaylistFromParseChat(playlistName, existingStreamId = null
             streamCount,
             playlistId,
             videoIds[0],
-            playlist.gameCover || null,
+            gameCoverValue,
             dateCompleted
           ]
         );
@@ -218,7 +221,7 @@ async function importPlaylistFromParseChat(playlistName, existingStreamId = null
             streamCount,
             playlistId,
             videoIds[0],
-            playlist.gameCover || null,
+            gameCoverValue,
             dateCompleted,
             streamId
           ]
