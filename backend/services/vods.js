@@ -3,6 +3,7 @@
 
 // Import pool directly - this works in Node.js backend
 const pool = require('../db/connection');
+const { convertGameCoverFromDb } = require('../utils/gameCover');
 
 // CORS headers configuration
 const allowedOrigins = [
@@ -62,7 +63,7 @@ async function getVods(dbConnectionOrConfig) {
       streams: row.streams || 1,
       dateCompleted: row.dateCompleted ? row.dateCompleted.toISOString() : null,
       firstVideo: row.firstVideo,
-      gameCover: row.gameCover
+      gameCover: convertGameCoverFromDb(row.gameCover)
     }));
     
     return allPlaylists;
@@ -345,7 +346,11 @@ async function getPlaylistById(playlistIdOrYoutubeId) {
 
     const { streamId: _, firstVideoId: __, ...headerData } = header.rows[0];
     
-    return { ...headerData, videos: videos.rows };
+    return { 
+      ...headerData, 
+      gameCover: convertGameCoverFromDb(headerData.gameCover),
+      videos: videos.rows 
+    };
   } finally {
     client.release();
   }
@@ -419,7 +424,7 @@ async function getVodsEnhanced() {
       tags: Array.isArray(row.stream_tags) ? row.stream_tags : [],
       streams: row.stream_count || 1,
       dateCompleted: row.date_completed ? row.date_completed.toISOString() : null,
-      gameCover: row.game_cover,
+      gameCover: convertGameCoverFromDb(row.game_cover),
       
       playlist: row.playlist_internal_id ? {
         internalId: row.playlist_internal_id,

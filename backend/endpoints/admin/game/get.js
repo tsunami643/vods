@@ -1,6 +1,7 @@
 const vodsService = require('../../../services/vods');
 const { verifyApiKey } = require('../../../middleware/auth');
 const pool = require('../../../db/connection');
+const { convertGameCoverFromDb } = require('../../../utils/gameCover');
 
 /**
  * @swagger
@@ -140,7 +141,7 @@ module.exports = (app) => {
           tags: row.stream_tags,
           streams: row.streams,
           dateCompleted: row.date_completed,
-          gameCover: row.game_cover,
+          gameCover: convertGameCoverFromDb(row.game_cover),
           
           // Enhanced playlist information
           playlist: row.playlist_internal_id ? {

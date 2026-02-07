@@ -31,6 +31,34 @@ const checkOrigin = (originHeader) => {
   return foundOrigin ? foundOrigin : allowedOrigins[0];
 };
 
+/**
+ * @param {string} dbValue - Value from database
+ * @returns {string|null} - URL
+ */
+function convertGameCoverFromDb(dbValue) {
+  if (!dbValue) return null;
+  
+  if (dbValue.startsWith('http')) {
+    return dbValue;
+  }
+  
+  try {
+    const parsed = JSON.parse(dbValue);
+    if (Array.isArray(parsed) && parsed.length === 2) {
+      const [source, id] = parsed;
+      if (source === 'igdb') {
+        return `https://images.igdb.com/igdb/image/upload/t_cover_small_2x/${id}.png`;
+      } else if (source === 'hltb') {
+        return `https://howlongtobeat.com/games/${id}?width=160`;
+      }
+    }
+  } catch (e) {
+    // If parsing fails, treat as URL
+  }
+  
+  return dbValue;
+}
+
 async function getVods(sql) {
   try {
     const result = await sql`
@@ -56,7 +84,7 @@ async function getVods(sql) {
       streams: row.streams || 1,
       dateCompleted: row.dateCompleted ? row.dateCompleted.toISOString() : null,
       firstVideo: row.firstVideo,
-      gameCover: row.gameCover
+      gameCover: convertGameCoverFromDb(row.gameCover)
     }));
     
     return allPlaylists;
