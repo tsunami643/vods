@@ -32,7 +32,9 @@ function loadEndpoints(app, endpointsDir) {
             const relativePath = path.relative(endpointsDir, fullPath);
             loadedEndpoints.push(relativePath);
             
-            console.log(`📍 Loaded endpoint: ${relativePath}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`📍 Loaded endpoint: ${relativePath}`);
+            }
           } else {
             console.warn(`⚠️  Skipping ${item}: does not export a function`);
           }
@@ -44,9 +46,19 @@ function loadEndpoints(app, endpointsDir) {
   }
   
   if (fs.existsSync(endpointsDir)) {
-    console.log('🔄 Loading endpoints...');
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (isDev) {
+      console.log('🔄 Loading endpoints...');
+    }
+    
     loadFromDirectory(endpointsDir);
-    console.log(`✅ Successfully loaded ${loadedEndpoints.length} endpoints`);
+    
+    if (isDev) {
+      console.log(`✅ Successfully loaded ${loadedEndpoints.length} endpoints`);
+    } else {
+      console.log(`Loaded ${loadedEndpoints.length} endpoints`);
+    }
   } else {
     console.warn(`⚠️  Endpoints directory not found: ${endpointsDir}`);
   }

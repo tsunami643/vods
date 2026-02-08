@@ -1,6 +1,7 @@
 const vodsService = require('../../../services/vods');
 const { verifyApiKey } = require('../../../middleware/auth');
 const pool = require('../../../db/connection');
+const { convertGameCoverFromDb } = require('../../../utils/gameCover');
 
 /**
  * @swagger
@@ -51,38 +52,7 @@ module.exports = (app) => {
   // Get all games with enhanced information
   app.get('/admin/game/get', verifyApiKey, async (req, res) => {
     try {
-      // For now, return the basic games data with enhanced structure
-      // Will implement full enhancement in next iteration
-      const basicGames = await vodsService.getVods();
-      
-      // Transform to admin format with enhanced structure
-      const enhancedGames = basicGames.map((game, index) => ({
-        streamId: index + 1,
-        gameName: game.gameName,
-        tags: game.tags,
-        streams: game.streams,
-        dateCompleted: game.dateCompleted,
-        gameCover: game.gameCover,
-        
-        // Enhanced playlist information (basic for now)
-        playlist: {
-          internalId: null, // Will be populated with DB queries later
-          youtubeId: game.playlistId,
-          name: null, // Will be populated with DB queries later
-          tags: null, // Will be populated with DB queries later
-          videos: [] // Will be populated with DB queries later
-        },
-        
-        // Enhanced first video information (basic for now)
-        firstVideo: {
-          internalId: null, // Will be populated with DB queries later
-          youtubeId: game.firstVideo,
-          twitchId: null, // Will be populated with DB queries later
-          name: null, // Will be populated with DB queries later
-          tags: null // Will be populated with DB queries later
-        }
-      }));
-      
+      const enhancedGames = await vodsService.getVodsEnhanced();
       res.json(enhancedGames);
     } catch (error) {
       console.error('Error getting games:', error);
@@ -108,7 +78,7 @@ module.exports = (app) => {
             s.id as stream_id,
             s.game_name,
             s.tags as stream_tags,
-            s.streams,
+            s.stream_count,
             s.date_completed,
             s.game_cover,
             
@@ -127,7 +97,7 @@ module.exports = (app) => {
             
           FROM streams s
           LEFT JOIN playlists p ON s.playlist_id = p.id
-          LEFT JOIN videos fv ON s.first_video = fv.id
+          LEFT JOIN videos fv ON s.first_video_id = fv.id
           WHERE s.id = $1
         `;
         
@@ -145,7 +115,7 @@ module.exports = (app) => {
           const videosQuery = `
             SELECT DISTINCT v.id, v.yt_id, v.twitch_id, v.name, v.tags, v.created_at
             FROM videos v
-            INNER JOIN streams s2 ON s2.first_video = v.id OR s2.playlist_id IN (
+            INNER JOIN streams s2 ON s2.first_video_id = v.id OR s2.playlist_id IN (
               SELECT p2.id FROM playlists p2 WHERE p2.youtube_id = (
                 SELECT p3.youtube_id FROM playlists p3 WHERE p3.id = s2.playlist_id
               )
@@ -171,7 +141,7 @@ module.exports = (app) => {
           tags: row.stream_tags,
           streams: row.streams,
           dateCompleted: row.date_completed,
-          gameCover: row.game_cover,
+          gameCover: convertGameCoverFromDb(row.game_cover),
           
           // Enhanced playlist information
           playlist: row.playlist_internal_id ? {

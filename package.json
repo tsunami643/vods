@@ -1,6 +1,6 @@
 {
   "name": "tsunami's twitch vods",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.5",
@@ -9,27 +9,28 @@
     "@fortawesome/free-brands-svg-icons": "^6.2.1",
     "@fortawesome/free-solid-svg-icons": "^6.2.1",
     "@fortawesome/react-fontawesome": "^0.2.0",
+    "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.11.6",
     "@mui/styles": "^5.11.2",
     "@testing-library/jest-dom": "^5.16.1",
     "@testing-library/react": "^12.1.2",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.2.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "history": "^5.2.0",
+    "node-fetch": "^2.6.7",
+    "pg": "^8.11.3",
     "query-string": "^7.1.0",
     "react": "^17.0.2",
     "react-circular-progressbar": "^2.0.4",
     "react-dom": "^17.0.2",
+    "react-router-dom": "^6.30.1",
     "react-scripts": "5.0.0",
-    "use-query-params": "^1.2.3",
-    "web-vitals": "^2.1.2",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "pg": "^8.11.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
-    "node-fetch": "^2.6.7"
+    "web-vitals": "^2.1.2"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -45,7 +46,9 @@
     "import-data": "node backend/scripts/import_data.js",
     "manage-keys": "node backend/scripts/manage_keys.js",
     "chat:convert": "node backend/scripts/chat_convert.js",
-    "chat:add": "node backend/scripts/chat_add.js"
+    "chat:add": "node backend/scripts/chat_add.js",
+    "import:playlist": "node backend/scripts/import_playlist.js",
+    "yt:fetch-playlist": "node backend/scripts/fetch_playlist_videos.js"
   },
   "eslintConfig": {
     "extends": [
@@ -67,7 +70,8 @@
   },
   "devDependencies": {
     "gh-pages": "^3.2.3",
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "serve": "^14.2.5"
   },
   "homepage": "https://howdoiplay.com/vods"
 }

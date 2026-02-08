@@ -10,7 +10,6 @@ const pool = new Pool({
 });
 
 pool.on('connect', (client) => {
-  console.log('Connected to PostgreSQL database');
   // Set search path to use vods schema by default
   client.query('SET search_path TO vods, system, public');
 });

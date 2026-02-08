@@ -25,6 +25,10 @@ const { verifyApiKey } = require('../../../middleware/auth');
  *                     type: integer
  *                   name:
  *                     type: string
+ *                   sub_title:
+ *                     type: string
+ *                   description:
+ *                     type: string
  *                   tags:
  *                     type: array
  *                     items:
@@ -66,7 +70,7 @@ module.exports = (app) => {
       
       try {
         const result = await client.query(
-          'SELECT id, yt_id, twitch_id, name, tags, created_at, updated_at FROM videos ORDER BY created_at DESC'
+          'SELECT id, yt_id, twitch_id, name, sub_title, description, tags, created_at, updated_at FROM videos ORDER BY created_at DESC'
         );
         
         res.json(result.rows);
@@ -92,7 +96,7 @@ module.exports = (app) => {
       
       try {
         const result = await client.query(
-          'SELECT id, yt_id, twitch_id, name, tags, created_at, updated_at FROM videos WHERE id = $1',
+          'SELECT id, yt_id, twitch_id, name, sub_title, description, tags, created_at, updated_at FROM videos WHERE id = $1',
           [videoId]
         );
         

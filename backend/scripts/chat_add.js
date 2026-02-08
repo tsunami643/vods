@@ -1,148 +1,106 @@
-#!/usr/bin/env node
-
 const fs = require('fs');
 const path = require('path');
-const { convertChatData, validateChatData } = require('../services/chat_converter');
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+
 const pool = require('../db/connection');
-
-/**
- * Adds a single chat log to the database
- * @param {number} chatId - Chat ID
- * @param {Object} chatLog - Chat log data
- * @returns {Promise<number>} Inserted record ID
- */
-async function addChatToDatabase(chatId, chatLog) {
-  const insertQuery = 'INSERT INTO chat_logs (message, user_data) VALUES ($1, $2) RETURNING id';
-  
-  // Create a message that includes the chat ID for tracking
-  const message = `Chat log ${chatId}`;
-  
-  // Store the entire chat log in user_data field
-  const userData = {
-    chat_id: chatId,
-    chat_log: chatLog,
-    imported_at: new Date().toISOString()
-  };
-  
-  const result = await pool.query(insertQuery, [message, JSON.stringify(userData)]);
-  return result.rows[0].id;
-}
-
-/**
- * Extracts number from filename (e.g., "chat123.json" -> 123)
- * @param {string} filename - Filename to extract number from
- * @returns {number|null} Extracted number or null if not found
- */
-function extractNumberFromFilename(filename) {
-  const match = filename.match(/(\d+)/);
-  return match ? parseInt(match[1], 10) : null;
-}
-
-/**
- * Processes a single chat file
- * @param {string} filePath - Path to the chat file
- * @param {number} chatId - Chat ID to use (from filename or provided)
- */
-async function processChatFile(filePath, chatId = null) {
-  const filename = path.basename(filePath);
-  
-  // Extract chat ID from filename if not provided
-  if (chatId === null) {
-    chatId = extractNumberFromFilename(filename);
-    if (chatId === null) {
-      console.warn(`⚠️  Could not extract chat ID from filename: ${filename}`);
-      return;
-    }
-  }
-  
-  console.log(`📂 Processing file: ${filename} (Chat ID: ${chatId})`);
-  
-  try {
-    // Read and parse the file
-    const rawData = fs.readFileSync(filePath, 'utf8');
-    let chatData;
-    
-    try {
-      chatData = JSON.parse(rawData);
-    } catch (parseError) {
-      console.error(`❌ Invalid JSON in file ${filename}: ${parseError.message}`);
-      return;
-    }
-    
-    // Validate and convert chat data
-    if (!validateChatData(chatData)) {
-      console.error(`❌ Invalid chat data format in file: ${filename}`);
-      return;
-    }
-    
-    const convertedData = convertChatData(chatData);
-    
-    // Add to database
-    const recordId = await addChatToDatabase(chatId, convertedData);
-    console.log(`✅ Added chat ${chatId} to database (Record ID: ${recordId})`);
-    
-  } catch (error) {
-    console.error(`❌ Error processing file ${filename}:`, error.message);
-  }
-}
+const { parseOrPassthrough } = require('../services/chat_parser');
+const { saveChatData, getVideoIdByYoutubeId, getVideoIdByTwitchId } = require('../services/chat_db');
 
 async function main() {
   const args = process.argv.slice(2);
   
-  if (args.length !== 1) {
-    console.error('Usage: npm run chat:add <file-or-folder>');
-    console.error('Examples:');
-    console.error('  npm run chat:add ./data/chat123.json');
-    console.error('  npm run chat:add ./data/chats/');
+  if (args.length < 2) {
+    console.log('Usage: npm run chat:add <file.json> <video_identifier>');
+    console.log('');
+    console.log('video_identifier can be:');
+    console.log('  - Internal video ID (number)');
+    console.log('  - YouTube video ID (e.g., dQw4w9WgXcQ)');
+    console.log('  - twitch:<twitch_vod_id> (e.g., twitch:1234567890)');
+    console.log('');
+    console.log('The JSON file can be either raw Twitch chat format or pre-parsed format.');
     process.exit(1);
   }
   
-  const target = args[0];
+  const filePath = args[0];
+  const videoIdentifier = args[1];
+  
+  if (!fs.existsSync(filePath)) {
+    console.error(`File not found: ${filePath}`);
+    process.exit(1);
+  }
+  
+  console.log(`Reading ${filePath}...`);
+  
+  let rawData;
+  try {
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    rawData = JSON.parse(fileContent);
+  } catch (error) {
+    console.error('Failed to parse JSON file:', error.message);
+    process.exit(1);
+  }
+  
+  let internalVideoId = null;
+  let twitchVideoId = null;
+  
+  if (videoIdentifier.startsWith('twitch:')) {
+    const twitchId = videoIdentifier.slice(7);
+    console.log(`Looking up video by Twitch ID: ${twitchId}`);
+    internalVideoId = await getVideoIdByTwitchId(parseInt(twitchId));
+    twitchVideoId = parseInt(twitchId);
+    
+    if (!internalVideoId) {
+      console.error(`No video found with Twitch ID: ${twitchId}`);
+      console.log('Make sure the video exists in the database with the twitch_id field set.');
+      process.exit(1);
+    }
+  } else if (/^\d+$/.test(videoIdentifier)) {
+    internalVideoId = parseInt(videoIdentifier);
+    console.log(`Using internal video ID: ${internalVideoId}`);
+  } else {
+    console.log(`Looking up video by YouTube ID: ${videoIdentifier}`);
+    internalVideoId = await getVideoIdByYoutubeId(videoIdentifier);
+    
+    if (!internalVideoId) {
+      console.error(`No video found with YouTube ID: ${videoIdentifier}`);
+      console.log('Make sure the video exists in the database first.');
+      process.exit(1);
+    }
+  }
+  
+  console.log(`Video ID resolved to: ${internalVideoId}`);
+  console.log('Parsing chat data...');
+  
+  const parsedData = parseOrPassthrough(rawData);
+  
+  console.log(`Found ${parsedData.chatList.length} messages`);
+  console.log(`Found ${parsedData.badgeList.length} unique badges`);
+  console.log(`Found ${parsedData.emoteList.length} unique emotes`);
+  console.log(`Found ${parsedData.userList.length} unique users`);
+  
+  if (parsedData.chatList.length === 0) {
+    console.error('No chat messages found in the file.');
+    process.exit(1);
+  }
+  
+  console.log('Saving to database...');
   
   try {
-    if (!fs.existsSync(target)) {
-      console.error(`❌ File or folder not found: ${target}`);
-      process.exit(1);
-    }
-    
-    const stat = fs.statSync(target);
-    
-    if (stat.isFile()) {
-      // Process single file
-      console.log('📁 Processing single file...');
-      await processChatFile(target);
-    } else if (stat.isDirectory()) {
-      // Process all JSON files in directory
-      console.log('📁 Processing directory...');
-      const files = fs.readdirSync(target)
-        .filter(file => file.endsWith('.json'))
-        .sort(); // Sort to ensure consistent processing order
-      
-      if (files.length === 0) {
-        console.warn('⚠️  No JSON files found in directory');
-        return;
-      }
-      
-      console.log(`📂 Found ${files.length} JSON files to process`);
-      
-      for (const file of files) {
-        const filePath = path.join(target, file);
-        await processChatFile(filePath);
-      }
-    } else {
-      console.error('❌ Target must be a file or directory');
-      process.exit(1);
-    }
-    
-    console.log('🎉 Chat processing completed!');
-    
+    const result = await saveChatData(internalVideoId, parsedData, twitchVideoId);
+    console.log('');
+    console.log('Chat data saved successfully!');
+    console.log(`  Metadata ID: ${result.metadataId}`);
+    console.log(`  Messages saved: ${result.messageCount}`);
   } catch (error) {
-    console.error('❌ Error during processing:', error.message);
+    console.error('Failed to save chat data:', error.message);
     process.exit(1);
-  } finally {
-    // Close database connection
-    await pool.end();
   }
+  
+  await pool.end();
+  process.exit(0);
 }
 
-main(); 
+main().catch(err => {
+  console.error('Unexpected error:', err);
+  process.exit(1);
+});

@@ -4,40 +4,31 @@ import {
   Card,
   CardContent,
   CardMedia,
-  Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
 import useGameBoxStyles from "../styles/useGameBoxStyles";
-import { API_URL } from "../utils/constants";
 import StreamInfo from "./StreamInfo";
 
-import SearchBar from "./navbar/SearchBar";
-
-const GameBox = ({ data, addTag }) => {
-  const [loading, setLoading] = useState(Boolean);
-  //const [loadCover, setloadCover] = useState(Boolean);
-  //const [cover, setCover] = useState();
-
+const GameBox = ({ data, addTag, clearSearch }) => {
   const classes = useGameBoxStyles();
 
-  const handleClick = tag => () => {
-    /*addTag(tag);*/
-  }
+  const handleTagClick = (tag) => (e) => {
+    e.stopPropagation();
+    if (clearSearch) clearSearch();
+    addTag(tag);
+  };
 
   return (
     <Card className={classes.card}>
       <CardMedia
         component="img"
-        image={`${data.gameCover}`}
+        image={data.gameCover}
         alt={`${data.gameName} Cover`}
         className={classes.cardMedia}
       />
       <CardContent className={classes.cardContent}>
-        {/* Title */}
         <Typography className={classes.title}>{data.gameName}</Typography>
-        {/* Stream Info */}
         <Box className={classes.streamInfo}>
           <StreamInfo
             dateCompleted={data.dateCompleted}
@@ -46,14 +37,21 @@ const GameBox = ({ data, addTag }) => {
             streams={data.streams}
           />
         </Box>
-        {/* Tags */}
         <Box className={classes.tagBox}>
-          <Typography color={"white"}
-            fontSize={12}
-            fontWeight={700}>Tags:</Typography>
-          <Stack className={classes.tags} direction="row" spacing={1} justifyContent="flex-start" marginLeft={"8px"}>
+          <Typography color={"white"} fontSize={12} fontWeight={700}>
+            Tags:
+          </Typography>
+          <Stack
+            className={classes.tags}
+            direction="row"
+            spacing={1}
+            justifyContent="flex-start"
+            marginLeft={"8px"}
+          >
             {data.tags.map((tag, key) => {
-              return (<Chip label={tag} onClick={handleClick(tag)} size="small" key={key}/>);
+              return (
+                <Chip label={tag} onClick={handleTagClick(tag)} size="small" key={key} />
+              );
             })}
           </Stack>
         </Box>

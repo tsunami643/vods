@@ -9,6 +9,11 @@ const useGameBoxStyles = makeStyles((theme) => ({
     borderRadius: 10,
     display: "flex",
     boxShadow: "none",
+    transition: "transform 150ms ease, box-shadow 150ms ease",
+    "&:hover": {
+      transform: "translateY(-3px)",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+    },
     [theme.breakpoints.down("mobileCard")]: {
       margin: 4,
       width: "100%",
@@ -46,29 +51,22 @@ const useGameBoxStyles = makeStyles((theme) => ({
     fontWeight: 700,
     [theme.breakpoints.down("mobileCard")]: {
       fontSize: 16,
-      //textAlign: "center",
     },
   },
   skeleton: {
     width: 130,
-    //height: 70,
     [theme.breakpoints.down("mobileCard")]: {
       width: 80,
       height: 40,
     },
   },
   streamInfo: {
-    //width: 268,
     width: "100%",
-    //marginLeft: 32,
     display: "flex",
     textAlign: "center",
-    //justifyContent: "flex-start",
     justifyContent: "center",
     [theme.breakpoints.down("mobileCard")]: {
-      //width: "100%",
       marginLeft: 0,
-      //justifyContent: "center",
     },
     [theme.breakpoints.between("mobileCard", "sm")]: {
       width: "auto",
@@ -93,20 +91,32 @@ const useGameBoxStyles = makeStyles((theme) => ({
   },
   tags: {
     marginLeft: 8,
-    overflowX:'scroll', //Allow scrolling through tags
-    msOverflowStyle: 'none',  /* IE and Edge */
-    scrollbarWidth: 'none',  /* Firefox */
-    '&::-webkit-scrollbar':{
+    overflowX: "scroll",
+    msOverflowStyle: "none",
+    scrollbarWidth: "none",
+    "&::-webkit-scrollbar": {
       display: "none",
-    }
+    },
   },
   youtube: {
     display: "flex",
     justifyContent: "center",
     flexBasis: "33.3333%",
     fontSize: 55,
+    color: "#ffffff",
+    cursor: "pointer",
+    transition: "text-shadow 120ms ease",
+    "&:hover": {
+      textShadow: "0 0 8px rgba(255, 255, 255, 0.8)",
+    },
     [theme.breakpoints.down("mobileCard")]: {
       fontSize: 40,
+    },
+  },
+  streamsHover: {
+    transition: "text-shadow 120ms ease, transform 120ms ease",
+    "&:hover": {
+      textShadow: "0 0 5px rgba(220, 220, 255, 0.9)",
     },
   },
 }));

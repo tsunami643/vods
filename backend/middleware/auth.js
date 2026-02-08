@@ -26,9 +26,8 @@ async function verifyApiKey(req, res, next) {
       });
     }
     
+    // Attach API key info to request for logging
     req.apiKeyInfo = result.rows[0];
-    
-    console.log(`🔑 Admin access granted for key: ${result.rows[0].name}`);
     next();
     
   } catch (error) {
