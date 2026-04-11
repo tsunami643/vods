@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/vods/static/css/main.6e587d18.css",
-    "main.js": "/vods/static/js/main.015d7feb.js",
+    "main.js": "/vods/static/js/main.73f04b08.js",
     "static/media/logo.png": "/vods/static/media/logo.dd969e4cd8a3b2d53910.png",
     "index.html": "/vods/index.html",
     "main.6e587d18.css.map": "/vods/static/css/main.6e587d18.css.map",
-    "main.015d7feb.js.map": "/vods/static/js/main.015d7feb.js.map"
+    "main.73f04b08.js.map": "/vods/static/js/main.73f04b08.js.map"
   },
   "entrypoints": [
     "static/css/main.6e587d18.css",
-    "static/js/main.015d7feb.js"
+    "static/js/main.73f04b08.js"
   ]
 }
