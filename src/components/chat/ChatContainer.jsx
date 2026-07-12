@@ -139,6 +139,7 @@ export default function ChatContainer({
   const loadedRangesRef = useRef([]);
   const mountedVideoIdRef = useRef(videoId);
   const pendingScrollRef = useRef(false);
+  const unseenMessageIdsRef = useRef(new Set());
   const pendingLoadRef = useRef(null);
   const lastRealTimeUpdateRef = useRef(0);
   const resizeStartXRef = useRef(0);
@@ -161,6 +162,7 @@ export default function ChatContainer({
     setSeekLoading(false);
     setIsUserAtBottom(true);
     setUnseenMessages(0);
+    unseenMessageIdsRef.current.clear();
     
     lastSyncTimeRef.current = -1;
     lastLoadCheckTimeRef.current = -1;
@@ -489,6 +491,7 @@ export default function ChatContainer({
         setDisplayedMessages(toShow);
         setIsUserAtBottom(true);
         setUnseenMessages(0);
+        unseenMessageIdsRef.current.clear();
       }).catch(() => {
         seekingRef.current = false;
       });
@@ -513,34 +516,36 @@ export default function ChatContainer({
     const startIndex = Math.max(0, cutoffIndex - SCREEN_LIMIT);
     const toShow = videoMessages.slice(startIndex, cutoffIndex);
     
-    setDisplayedMessages(prev => {
-      const prevValid = prev.filter(m => m._videoId === vid);
-      if (toShow.length === 0 && prevValid.length === 0) return toShow;
-      
-      const prevLastTime = prevValid.length > 0 ? prevValid[prevValid.length - 1].time : -1;
-      const toShowLastTime = toShow.length > 0 ? toShow[toShow.length - 1].time : -1;
-      
-      if (toShowLastTime < prevLastTime) {
-        return isUserAtBottom ? toShow : prev;
-      }
+    const prevValid = displayedMessages.filter(m => m._videoId === vid);
+    if (toShow.length === 0 && prevValid.length === 0) return;
 
-      const prevIds = new Set(prevValid.map(m => m._id));
-      const newMessages = toShow.filter(m => !prevIds.has(m._id));
-      
-      if (newMessages.length > 0) {
-        if (!isUserAtBottom) {
-          setUnseenMessages(c => c + newMessages.length);
+    const prevLastTime = prevValid.length > 0 ? prevValid[prevValid.length - 1].time : -1;
+    const toShowLastTime = toShow.length > 0 ? toShow[toShow.length - 1].time : -1;
 
-          return prev;
-        } else {
-          pendingScrollRef.current = true;
-          return toShow;
-        }
+    if (toShowLastTime < prevLastTime) {
+      if (isUserAtBottom) setDisplayedMessages(toShow);
+      return;
+    }
+
+    const prevIds = new Set(prevValid.map(m => m._id));
+    const newMessages = toShow.filter(m => !prevIds.has(m._id));
+
+    if (newMessages.length === 0) return;
+
+    if (!isUserAtBottom) {
+      const previousUnseenCount = unseenMessageIdsRef.current.size;
+      for (const message of newMessages) {
+        unseenMessageIdsRef.current.add(message._id);
       }
-      
-      return prev;
-    });
-  }, [currentTime, videoMessages, metadata, loading, error, delayTime, isUserAtBottom, videoId, loadTimeRange, isRangeLoaded]);
+      if (unseenMessageIdsRef.current.size !== previousUnseenCount) {
+        setUnseenMessages(unseenMessageIdsRef.current.size);
+      }
+      return;
+    }
+
+    pendingScrollRef.current = true;
+    setDisplayedMessages(toShow);
+  }, [currentTime, displayedMessages, videoMessages, metadata, loading, error, delayTime, isUserAtBottom, videoId, loadTimeRange, isRangeLoaded]);
 
   useEffect(() => {
     if (!pendingScrollRef.current || !messagesRef.current) return;
@@ -599,7 +604,10 @@ export default function ChatContainer({
     const atTop = scrollTop <= 30;
     
     setIsUserAtBottom(atBottom);
-    if (atBottom) setUnseenMessages(0);
+    if (atBottom) {
+      unseenMessageIdsRef.current.clear();
+      setUnseenMessages(0);
+    }
     
     if (atTop && !loadingMore && displayedMessages.length > 0) {
       const vid = mountedVideoIdRef.current;
@@ -648,6 +656,7 @@ export default function ChatContainer({
   const handleResumeScroll = () => {
     if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     setIsUserAtBottom(true);
+    unseenMessageIdsRef.current.clear();
     setUnseenMessages(0);
   };
 
@@ -816,6 +825,8 @@ export default function ChatContainer({
   const containerStyle = {
     width: isDesktop ? `${chatWidth}px` : undefined,
     minWidth: isDesktop ? `${chatWidth}px` : undefined,
+    '--chat-font-size': `${fontSize}px`,
+    '--chat-font-scale': fontSize / 14,
   };
 
   const renderSettingsPanel = () => (
@@ -1008,7 +1019,6 @@ export default function ChatContainer({
         className="messages-container" 
         ref={messagesRef}
         onScroll={handleScroll}
-        style={{ fontSize: `${fontSize}px` }}
       >
         {loadingMore && (
           <div className="loading-more">
@@ -1040,15 +1050,32 @@ export default function ChatContainer({
       </div>
       
       {!isUserAtBottom && (
-        <button className="resume-scroll-button" onClick={handleResumeScroll}>
-          <svg className="resume-icon" viewBox="0 0 20 20">
-            <path d="M8 3H4v14h4V3zm8 0h-4v14h4V3z"/>
-          </svg>
-          <span>
-            {unseenMessages > 0 
-              ? `${unseenMessages > 20 ? '20+' : unseenMessages} new message${unseenMessages === 1 ? '' : 's'}`
-              : 'Chat paused due to scroll'
-            }
+        <button
+          className="resume-scroll-button"
+          onClick={handleResumeScroll}
+          aria-label="Resume automatic chat scrolling"
+        >
+          <span className="resume-scroll-container">
+            <span className="resume-icon-container" aria-hidden="true">
+              <svg className="resume-icon resume-pause-icon" viewBox="0 0 20 20">
+                <path d="M8 3H4v14h4V3zm8 0h-4v14h4V3z" />
+              </svg>
+              <svg className="resume-icon resume-arrow-icon" viewBox="0 0 20 20">
+                <path d="M9 3h2v9.17l3.59-3.58L16 10l-6 6-6-6 1.41-1.41L9 12.17V3z" />
+              </svg>
+            </span>
+            <span className="resume-text-container">
+              <span className="resume-text resume-default-text">
+                {unseenMessages === 0
+                  ? 'Chat paused due to scroll'
+                  : unseenMessages === 1
+                    ? '1 new message'
+                    : unseenMessages <= 20
+                      ? `${unseenMessages} new messages`
+                      : '20+ new messages'}
+              </span>
+              <span className="resume-text resume-hover-text">Resume auto scroll</span>
+            </span>
           </span>
         </button>
       )}

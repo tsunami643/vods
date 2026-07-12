@@ -40,22 +40,21 @@
   height: 100dvh;
   overflow: hidden;
   background: var(--page-bg);
-}
 
 /* Prevent any scrolling when video page is in fullscreen */
-.video-page:fullscreen {
+&:fullscreen {
   overflow: hidden !important;
 }
 
-.video-page:-webkit-full-screen {
+&:-webkit-full-screen {
   overflow: hidden !important;
 }
 
-.video-page:-moz-full-screen {
+&:-moz-full-screen {
   overflow: hidden !important;
 }
 
-.video-page:-ms-fullscreen {
+&:-ms-fullscreen {
   overflow: hidden !important;
 }
 
@@ -230,6 +229,7 @@ a.game-cover:hover .game-cover-overlay {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  padding-top: 1px;
 }
 
 .video-title,
@@ -255,7 +255,7 @@ a.game-cover:hover .game-cover-overlay {
 .video-subtitle {
   font-size: 0.87em;
   opacity: 0.8;
-  padding-bottom: 2px;
+  padding-bottom: 1px;
   word-wrap: break-word;
 }
 
@@ -371,6 +371,11 @@ a.part-dropdown-item {
 }
 
 .part-dropdown-text .part-video-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-weight: bold;
 }
 
@@ -559,4 +564,5 @@ a.part-dropdown-item {
     height: 26px;
     width: 26px;
   }
+}
 }

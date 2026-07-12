@@ -1,6 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
-export default function Tooltip({ children, text, imageUrl = null, className = '' }) {
+export default function Tooltip({
+  children,
+  text,
+  content = null,
+  imageUrl = null,
+  imageAlt = '',
+  className = '',
+}) {
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [arrowOffset, setArrowOffset] = useState(50);
@@ -13,28 +20,33 @@ export default function Tooltip({ children, text, imageUrl = null, className = '
     
     const containerRect = containerRef.current.getBoundingClientRect();
     const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const tooltipFontSize = Number.parseFloat(
+      window.getComputedStyle(tooltipRef.current).fontSize
+    ) || 12;
+    const gap = tooltipFontSize * 0.5;
+    const viewportPadding = tooltipFontSize / 3;
     
-    let top = containerRect.top - tooltipRect.height - 6;
+    let top = containerRect.top - tooltipRect.height - gap;
     let left = containerRect.left + (containerRect.width - tooltipRect.width) / 2;
     
     const elementCenter = containerRect.left + containerRect.width / 2;
     let arrowLeft = 50;
     
-    if (left < 4) {
-      left = 4;
+    if (left < viewportPadding) {
+      left = viewportPadding;
       arrowLeft = ((elementCenter - left) / tooltipRect.width) * 100;
     }
     
-    if (left + tooltipRect.width > window.innerWidth - 4) {
-      const newLeft = window.innerWidth - 4 - tooltipRect.width;
+    if (left + tooltipRect.width > window.innerWidth - viewportPadding) {
+      const newLeft = window.innerWidth - viewportPadding - tooltipRect.width;
       arrowLeft = ((elementCenter - newLeft) / tooltipRect.width) * 100;
       left = newLeft;
     }
     
     arrowLeft = Math.max(10, Math.min(90, arrowLeft));
     
-    if (top < 4) {
-      top = containerRect.bottom + 6;
+    if (top < viewportPadding) {
+      top = containerRect.bottom + gap;
     }
     
     setPosition({ top, left });
@@ -58,6 +70,15 @@ export default function Tooltip({ children, text, imageUrl = null, className = '
       window.removeEventListener('scroll', handleUpdate, true);
       window.removeEventListener('resize', handleUpdate);
     };
+  }, [visible, updatePosition]);
+
+  useEffect(() => {
+    if (!visible || !tooltipRef.current || !window.ResizeObserver) return;
+
+    const resizeObserver = new ResizeObserver(updatePosition);
+    resizeObserver.observe(tooltipRef.current);
+
+    return () => resizeObserver.disconnect();
   }, [visible, updatePosition]);
 
   const showTooltip = () => {
@@ -117,8 +138,15 @@ export default function Tooltip({ children, text, imageUrl = null, className = '
             '--arrow-offset': `${arrowOffset}%`
           }}
         >
-          {imageUrl && <img src={imageUrl} alt={text} className="tooltip-image" />}
-          <span className="tooltip-text">{text}</span>
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt={imageAlt || (typeof text === 'string' ? text : '')}
+              className="tooltip-image"
+              onLoad={updatePosition}
+            />
+          )}
+          <span className="tooltip-text">{content ?? text}</span>
         </span>
       )}
     </span>

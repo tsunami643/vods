@@ -31,6 +31,7 @@ const CHEERMOTE_NAMES = [
 ];
 
 const CHEERMOTE_REGEX = new RegExp(`(?<!\\w)(${CHEERMOTE_NAMES.join('|')})(\\d+)(?!\\w)`, 'gi');
+const CHAT_LINK_REGEX = /\b((?:https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s<]*)/gi;
 
 function getCheermoteTier(amount) {
   if (amount >= 10000) return { tier: '10000', color: '#f43021' };
@@ -40,6 +41,15 @@ function getCheermoteTier(amount) {
   return { tier: '1', color: '#979797' };
 }
 
+function EmoteTooltipContent({ name, source = 'Twitch' }) {
+  return (
+    <>
+      <span className="emote-tooltip-name">{name}</span>
+      <span className="emote-tooltip-source">{source}</span>
+    </>
+  );
+}
+
 function Cheermote({ name, amount }) {
   const { tier, color } = getCheermoteTier(amount);
   const baseUrl = `https://d3aqoihi2n8ty8.cloudfront.net/actions/${name.toLowerCase()}/dark/animated/${tier}/`;
@@ -47,7 +57,10 @@ function Cheermote({ name, amount }) {
   const srcset = urls.slice(1).map((u, i) => `${u} ${i + 2}x`).join(', ');
   
   return (
-    <Tooltip text={`${name}${amount}\nTwitch`} className="chat-emote-container">
+    <Tooltip
+      content={<EmoteTooltipContent name={`${name}${amount}`} />}
+      className="chat-emote-container"
+    >
       <span className="emote cheermote" style={{ color }}>
         <img
           className="cheermote-img"
@@ -67,8 +80,7 @@ function Cheermote({ name, amount }) {
 
 function parseMessageContent(message, emotes, emoteList) {
   if (!emotes || emotes.length === 0) {
-    // No emotes, but still check for cheermotes in text
-    return parseCheermotes(message);
+    return parseTextContent(message);
   }
 
   const sortedEmotes = [...emotes].sort((a, b) => b[1] - a[1]);
@@ -83,8 +95,7 @@ function parseMessageContent(message, emotes, emoteList) {
     if (end + 1 < lastIdx) {
       const textAfter = chars.slice(end + 1, lastIdx).join('');
       if (textAfter) {
-        // Parse cheermotes in text segments
-        parts.unshift(...parseCheermotes(textAfter));
+        parts.unshift(...parseTextContent(textAfter));
       }
     }
 
@@ -95,12 +106,36 @@ function parseMessageContent(message, emotes, emoteList) {
   if (lastIdx > 0) {
     const textBefore = chars.slice(0, lastIdx).join('');
     if (textBefore) {
-      // Parse cheermotes in text segments
-      parts.unshift(...parseCheermotes(textBefore));
+      parts.unshift(...parseTextContent(textBefore));
     }
   }
 
   return parts;
+}
+
+function parseTextContent(text) {
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  CHAT_LINK_REGEX.lastIndex = 0;
+
+  while ((match = CHAT_LINK_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(...parseCheermotes(text.slice(lastIndex, match.index)));
+    }
+
+    const label = match[0];
+    const href = /^https?:\/\//i.test(label) ? label : `https://${label}`;
+    parts.push({ type: 'link', content: label, href });
+    lastIndex = match.index + label.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(...parseCheermotes(text.slice(lastIndex)));
+  }
+
+  return parts.length > 0 ? parts : parseCheermotes(text);
 }
 
 function parseCheermotes(text) {
@@ -236,6 +271,19 @@ export default function ChatMessage({
         <span className="chat-text">
           {parts.map((part, i) => {
             if (part.type === 'text') return <span key={i}>{part.content}</span>;
+            if (part.type === 'link') {
+              return (
+                <a
+                  key={i}
+                  className="chat-link"
+                  href={part.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {part.content}
+                </a>
+              );
+            }
             if (part.type === 'cheermote') {
               return <Cheermote key={i} name={part.name} amount={part.amount} />;
             }
@@ -243,12 +291,17 @@ export default function ChatMessage({
             const url = getEmoteUrl(emote, '1x');
             const srcset = `${getEmoteUrl(emote, '2x')} 2x, ${getEmoteUrl(emote, '3x')} 3x`;
             const highResUrl = getEmoteUrl(emote, '3x');
-            const tooltipText = `${emote.text}\n${emote.source || 'Twitch'}`;
             return (
               <Tooltip 
                 key={i} 
-                text={tooltipText} 
+                content={(
+                  <EmoteTooltipContent
+                    name={emote.text}
+                    source={emote.source || 'Twitch'}
+                  />
+                )}
                 imageUrl={highResUrl}
+                imageAlt={emote.text}
                 className="chat-emote-container"
               >
                 <span className="emote">

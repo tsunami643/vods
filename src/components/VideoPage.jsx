@@ -58,6 +58,59 @@ function parseTimecode(ts) {
   return 0;
 }
 
+const descriptionTokenPattern = /https?:\/\/\S+|\b(?:\d{1,2}:)?\d{1,2}:\d{2}\b/g;
+
+function renderDescription(description, videoId, onSeek) {
+  const content = [];
+  let previousEnd = 0;
+
+  for (const match of description.matchAll(descriptionTokenPattern)) {
+    const value = match[0];
+    const start = match.index;
+
+    if (start > previousEnd) {
+      content.push(description.slice(previousEnd, start));
+    }
+
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      content.push(
+        <a
+          key={`link-${start}`}
+          className="description-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          href={value}
+        >
+          {value}
+        </a>
+      );
+    } else {
+      const seconds = parseTimecode(value);
+      content.push(
+        <a
+          key={`time-${start}`}
+          href={videoHref(videoId, formatTimeForUrl(seconds))}
+          className="description-link timecode"
+          onClick={(event) => {
+            event.preventDefault();
+            onSeek(seconds);
+          }}
+        >
+          {value}
+        </a>
+      );
+    }
+
+    previousEnd = start + value.length;
+  }
+
+  if (previousEnd < description.length) {
+    content.push(description.slice(previousEnd));
+  }
+
+  return content;
+}
+
 export default function VideoPage({ videoId }) {
   const id = videoId;
   const navigate = useNavigate();
@@ -78,6 +131,8 @@ export default function VideoPage({ videoId }) {
     return localStorage.getItem('chatTheme') || 'blue';
   });
   const playerRef = useRef(null);
+  const currentTimeRef = useRef(0);
+  const pendingSeekRef = useRef(null);
   const descriptionRef = useRef(null);
   const hasInitializedRef = useRef(false);
   const infoContainerRef = useRef(null);
@@ -96,27 +151,29 @@ export default function VideoPage({ videoId }) {
       document.title = SITE_TITLE;
     };
   }, [video?.name]);
+
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
   
   useEffect(() => {
     if (lastInitializedIdRef.current !== id) {
       hasInitializedRef.current = false;
       lastInitializedIdRef.current = id;
     }
+
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    setInitialTime(null);
     
     const timeParam = searchParams.get('time');
     if (timeParam) {
       const seconds = parseTimeToSeconds(timeParam);
       if (seconds !== null && seconds >= 0) {
         setInitialTime(seconds);
-        if (!hasInitializedRef.current) {
-          hasInitializedRef.current = true;
-        }
         return;
       }
     }
-    
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
     
     try {
       const saved = localStorage.getItem('videoPlaybackState');
@@ -268,6 +325,10 @@ export default function VideoPage({ videoId }) {
             if (cancelled) return;
             playerRef.current = player;
             try {
+              if (pendingSeekRef.current !== null) {
+                player.seekTo?.(pendingSeekRef.current, true);
+                pendingSeekRef.current = null;
+              }
               player.playVideo?.();
             } catch {}
             intervalId = setInterval(() => {
@@ -307,8 +368,9 @@ export default function VideoPage({ videoId }) {
       window.removeEventListener('message', handleYTMessage);
       playerRef.current = null;
     };
+  // Query-string changes must not tear down the active YouTube player.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, playlist?.youtubeId, setSearchParams]);
+  }, [navigate, playlist?.youtubeId]);
 
   const updateUrlTime = useCallback((time) => {
     setSearchParams((currentParams) => {
@@ -324,10 +386,12 @@ export default function VideoPage({ videoId }) {
     }, { replace: true });
   }, [id, setSearchParams]);
 
-  const savePlaybackState = useCallback(() => {
-    if (!video || !playerRef.current) return;
+  const savePlaybackState = useCallback((timeOverride = null) => {
+    if (!video) return;
     
-    const time = playerRef.current.getCurrentTime?.() || currentTime;
+    const time = Number.isFinite(timeOverride)
+      ? timeOverride
+      : playerRef.current?.getCurrentTime?.() || currentTimeRef.current;
     const state = {
       videoId: id,
       time: Math.floor(time),
@@ -335,7 +399,7 @@ export default function VideoPage({ videoId }) {
     };
     
     localStorage.setItem('videoPlaybackState', JSON.stringify(state));
-  }, [video, id, currentTime]);
+  }, [video, id]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -370,36 +434,22 @@ export default function VideoPage({ videoId }) {
   }, [video?.youtubeId, playlist?.youtubeId]);
 
   const handleSeek = useCallback((time, updateUrl = true) => {
-    if (playerRef.current?.seekTo) {
-      const timeDiff = Math.abs(time - currentTime);
-      if (timeDiff >= 2) {
-        setShowPartDropdown(false);
-      }
-      
-      playerRef.current.seekTo(time, true);
-      setCurrentTime(time);
-      if (updateUrl) updateUrlTime(time);
-      savePlaybackState();
+    const timeDiff = Math.abs(time - currentTimeRef.current);
+    if (timeDiff >= 2) {
+      setShowPartDropdown(false);
     }
-  }, [currentTime, updateUrlTime, savePlaybackState]);
 
-  useEffect(() => {
-    if (!descriptionRef.current) return;
-    
-    const handleClick = (e) => {
-      const target = e.target.closest('.timecode');
-      if (target && target.dataset.seek) {
-        e.preventDefault();
-        e.stopPropagation();
-        const seconds = parseInt(target.dataset.seek, 10);
-        handleSeek(seconds);
-      }
-    };
-    
-    const el = descriptionRef.current;
-    el.addEventListener('click', handleClick);
-    return () => el.removeEventListener('click', handleClick);
-  }, [handleSeek, showDescription]);
+    if (playerRef.current?.seekTo) {
+      playerRef.current.seekTo(time, true);
+    } else {
+      pendingSeekRef.current = time;
+    }
+
+    currentTimeRef.current = time;
+    setCurrentTime(time);
+    if (updateUrl) updateUrlTime(time);
+    savePlaybackState(time);
+  }, [updateUrlTime, savePlaybackState]);
 
   const handlePartClick = (e, videoId, index) => {
     e.preventDefault();
@@ -543,14 +593,6 @@ export default function VideoPage({ videoId }) {
   const partMatch = video.name?.match(/\(Part\s+(\d+(?:\.\d+)?)/);
   const partNumber = partMatch ? partMatch[1] : (currentIndex + 1);
 
-  const formattedDescription = video.description
-    ?.replace(/https?:\/\/\S+/g, url => `<a class="description-link" target="_blank" rel="noopener noreferrer" href="${url}">${url}</a>`)
-    .replace(/\b(\d{1,2}:)?(\d{1,2}):(\d{2})\b/g, (match) => {
-      const seconds = parseTimecode(match);
-      const timeStr = formatTimeForUrl(seconds);
-      return `<a href="${videoHref(id, timeStr)}" class="description-link timecode" data-seek="${seconds}">${match}</a>`;
-    });
-
   return (
     <div className="video-page" data-theme={pageTheme}>
       <div className="video-content">
@@ -686,14 +728,9 @@ export default function VideoPage({ videoId }) {
                 <div 
                   ref={descriptionRef}
                   className="video-description"
-                  dangerouslySetInnerHTML={{ __html: formattedDescription }}
-                  onClick={(e) => {
-                    if (e.target.classList.contains('timecode') && e.target.dataset.seek) {
-                      e.preventDefault();
-                      handleSeek(parseInt(e.target.dataset.seek, 10));
-                    }
-                  }}
-                />
+                >
+                  {renderDescription(video.description, id, handleSeek)}
+                </div>
               </div>
             )}
           </div>
