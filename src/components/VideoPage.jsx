@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { API_URL } from '../utils/constants';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { getErrorStatus, isRequestCanceled, vodsApi } from '../api/vodsApi';
+import { routes, videoHref } from '../utils/routes';
+import { getVideoDocumentTitle, SITE_TITLE } from '../utils/site';
 import { ChatContainer } from './chat';
+import logo from '../images/logo.png';
 import '../styles/VideoPage.css';
 
 function formatDate(iso) {
@@ -56,13 +58,14 @@ function parseTimecode(ts) {
   return 0;
 }
 
-export default function VideoPage() {
-  const { id } = useParams();
+export default function VideoPage({ videoId }) {
+  const id = videoId;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [video, setVideo] = useState(null);
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
@@ -86,6 +89,13 @@ export default function VideoPage() {
   const playlistVideosRef = useRef([]);
 
   const lastInitializedIdRef = useRef(null);
+
+  useEffect(() => {
+    document.title = getVideoDocumentTitle(video?.name);
+    return () => {
+      document.title = SITE_TITLE;
+    };
+  }, [video?.name]);
   
   useEffect(() => {
     if (lastInitializedIdRef.current !== id) {
@@ -130,30 +140,51 @@ export default function VideoPage() {
       if (idx >= 0) setCurrentPlaylistIndex(idx);
       return;
     }
+
+    const controller = new AbortController();
+    let active = true;
     
     setLoading(true);
+    setLoadError(null);
     setVideo(null);
     setPlaylist(null);
     setCurrentTime(0);
     setCurrentPlaylistIndex(-1);
     
-    axios.get(`${API_URL}/video/${id}`)
-      .then(res => {
-        setVideo(res.data);
-        if (res.data.playlistYoutubeId) {
-          return axios.get(`${API_URL}/playlist/${res.data.playlistYoutubeId}`);
+    vodsApi.getVideo(id, { signal: controller.signal })
+      .then(data => {
+        if (!active) return null;
+        setVideo(data);
+        if (data.playlistYoutubeId) {
+          return vodsApi.getPlaylist(data.playlistYoutubeId, {
+            signal: controller.signal,
+          });
         }
         return null;
       })
-      .then(playlistRes => {
-        if (playlistRes) {
-          setPlaylist(playlistRes.data);
-          playlistVideosRef.current = playlistRes.data.videos || [];
-          const idx = playlistRes.data.videos?.findIndex(v => v.youtubeId === id) ?? -1;
+      .then(playlistData => {
+        if (active && playlistData) {
+          setPlaylist(playlistData);
+          playlistVideosRef.current = playlistData.videos || [];
+          const idx = playlistData.videos?.findIndex(v => v.youtubeId === id) ?? -1;
           setCurrentPlaylistIndex(idx);
         }
       })
-      .finally(() => setLoading(false));
+      .catch(error => {
+        if (!isRequestCanceled(error) && active) {
+          setVideo(null);
+          setPlaylist(null);
+          setLoadError(getErrorStatus(error) === 404 ? "Video not found" : "Unable to load video");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [id]);
 
   const currentVideoIdRef = useRef(video?.youtubeId);
@@ -212,7 +243,8 @@ export default function VideoPage() {
             hasInitializedRef.current = false;
             setShowDescription(false);
 
-            window.history.replaceState(null, '', `/vods/video/${newVideo.youtubeId}`);
+            isPartSwitchRef.current = true;
+            navigate(routes.video(newVideo.youtubeId), { replace: true });
           }
         }
       }
@@ -276,15 +308,21 @@ export default function VideoPage() {
       playerRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playlist?.youtubeId, setSearchParams]);
+  }, [navigate, playlist?.youtubeId, setSearchParams]);
 
   const updateUrlTime = useCallback((time) => {
-    if (time > 0) {
-      setSearchParams({ time: formatTimeForUrl(time) }, { replace: true });
-    } else {
-      setSearchParams({}, { replace: true });
-    }
-  }, [setSearchParams]);
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      nextParams.set('video', id);
+      nextParams.delete('playlist');
+      if (time > 0) {
+        nextParams.set('time', formatTimeForUrl(time));
+      } else {
+        nextParams.delete('time');
+      }
+      return nextParams;
+    }, { replace: true });
+  }, [id, setSearchParams]);
 
   const savePlaybackState = useCallback(() => {
     if (!video || !playerRef.current) return;
@@ -373,7 +411,7 @@ export default function VideoPage() {
       const newVideo = playlist.videos[index];
       if (newVideo) {
         isPartSwitchRef.current = true;
-        window.history.replaceState(null, '', `/vods/video/${videoId}`);
+        navigate(routes.video(videoId), { replace: true });
         
         setVideo(newVideo);
         setCurrentPlaylistIndex(index);
@@ -383,7 +421,7 @@ export default function VideoPage() {
         setShowDescription(false);
       }
     } else {
-      navigate(`/video/${videoId}`, { replace: true });
+      navigate(routes.video(videoId), { replace: true });
     }
   };
 
@@ -497,7 +535,7 @@ export default function VideoPage() {
   }, []);
 
   if (loading) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
-  if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Video not found</div>;
+  if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>{loadError || 'Video not found'}</div>;
 
   const hasDescription = video.description && !video.description.startsWith('Broadcasted live on Twitch');
   const videos = playlist?.videos || [];
@@ -510,7 +548,7 @@ export default function VideoPage() {
     .replace(/\b(\d{1,2}:)?(\d{1,2}):(\d{2})\b/g, (match) => {
       const seconds = parseTimecode(match);
       const timeStr = formatTimeForUrl(seconds);
-      return `<a href="/vods/video/${id}?time=${timeStr}" class="description-link timecode" data-seek="${seconds}">${match}</a>`;
+      return `<a href="${videoHref(id, timeStr)}" class="description-link timecode" data-seek="${seconds}">${match}</a>`;
     });
 
   return (
@@ -519,8 +557,8 @@ export default function VideoPage() {
         <div className={`video-wrapper ${isWideChat ? 'wide-chat' : ''}`}>
           {!hideVideoInfo && (
             <div className="compact-header">
-              <Link to="/" className="header-logo-link">
-                <img src={require('../images/logo.png')} alt="logo" className="header-logo" />
+              <Link to={routes.home} className="header-logo-link">
+                <img src={logo} alt="logo" className="header-logo" />
                 <span className="header-site-name">tsunami's twitch vods</span>
               </Link>
             </div>
@@ -553,7 +591,7 @@ export default function VideoPage() {
               <div className="video-metadata-container">
                 {playlist?.gameCover && (
                   <Link 
-                    to={`/playlist/${playlist.youtubeId}`}
+                    to={routes.playlist(playlist.youtubeId)}
                     className="game-cover" 
                     title="Go to Playlist"
                   >
@@ -568,9 +606,9 @@ export default function VideoPage() {
                 <div className="video-text-container">
                   <div className="video-header">
                     <div className="video-title">{video.name}</div>
-                    {video.subTitle && <div className="video-subtitle" title="Twitch Stream Title">{video.subTitle}</div>}
                     <div className="video-date">{formatDate(video.publishedAt || video.createdAt)}</div>
                   </div>
+                    {video.subTitle && <div className="video-subtitle" title="Twitch Stream Title">{video.subTitle}</div>}
                 </div>
               </div>
               
@@ -598,7 +636,7 @@ export default function VideoPage() {
                         {videos.map((v, idx) => (
                           <Link 
                             key={v.youtubeId}
-                            to={`/video/${v.youtubeId}`}
+                            to={routes.video(v.youtubeId)}
                             className={`part-dropdown-item ${v.youtubeId === video.youtubeId ? 'active' : ''}`}
                             role="option"
                             aria-selected={v.youtubeId === video.youtubeId}

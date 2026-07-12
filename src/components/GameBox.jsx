@@ -7,12 +7,10 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import useGameBoxStyles from "../styles/useGameBoxStyles";
+import gameBoxStyles from "../styles/useGameBoxStyles";
 import StreamInfo from "./StreamInfo";
 
 const GameBox = ({ data, addTag, clearSearch }) => {
-  const classes = useGameBoxStyles();
-
   const handleTagClick = (tag) => (e) => {
     e.stopPropagation();
     if (clearSearch) clearSearch();
@@ -20,16 +18,16 @@ const GameBox = ({ data, addTag, clearSearch }) => {
   };
 
   return (
-    <Card className={classes.card}>
+    <Card sx={gameBoxStyles.card}>
       <CardMedia
         component="img"
         image={data.gameCover}
         alt={`${data.gameName} Cover`}
-        className={classes.cardMedia}
+        sx={gameBoxStyles.cardMedia}
       />
-      <CardContent className={classes.cardContent}>
-        <Typography className={classes.title}>{data.gameName}</Typography>
-        <Box className={classes.streamInfo}>
+      <CardContent sx={gameBoxStyles.cardContent}>
+        <Typography sx={gameBoxStyles.title}>{data.gameName}</Typography>
+        <Box sx={gameBoxStyles.streamInfo}>
           <StreamInfo
             dateCompleted={data.dateCompleted}
             playlistId={data.playlistId}
@@ -37,16 +35,14 @@ const GameBox = ({ data, addTag, clearSearch }) => {
             streams={data.streams}
           />
         </Box>
-        <Box className={classes.tagBox}>
-          <Typography color={"white"} fontSize={12} fontWeight={700}>
+        <Box sx={gameBoxStyles.tagBox}>
+          <Typography sx={{ color: "white", fontSize: 12, fontWeight: 700 }}>
             Tags:
           </Typography>
           <Stack
-            className={classes.tags}
+            sx={gameBoxStyles.tags}
             direction="row"
             spacing={1}
-            justifyContent="flex-start"
-            marginLeft={"8px"}
           >
             {data.tags.map((tag, key) => {
               return (

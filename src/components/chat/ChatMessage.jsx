@@ -1,6 +1,7 @@
 import React from 'react';
 import { calculateColor } from '../../utils/colorReplace';
 import Tooltip from './Tooltip';
+import { videoHref } from '../../utils/routes';
 
 function getEmoteUrl(emote, size = '1x') {
   switch (emote.source) {
@@ -190,7 +191,7 @@ export default function ChatMessage({
     if (onSeek) onSeek(Math.floor(message.time + chatDelay) + 1);
   };
 
-  const timestampUrl = videoId ? `/vods/video/${videoId}?time=${formatTimeForUrl(message.time, chatDelay)}` : '#';
+  const timestampUrl = videoId ? videoHref(videoId, formatTimeForUrl(message.time, chatDelay)) : '#';
 
   const messageStyle = showBorder ? { borderBottom: '1px solid rgba(255,255,255,0.1)' } : {};
 

@@ -7,14 +7,14 @@ const Footer = () => {
 
   return (
     <footer style={{ textAlign: "center", padding: "32px 16px" }}>
-      <Typography fontSize={mobile ? 14 : "1rem"}>
+      <Typography sx={{ fontSize: mobile ? 14 : "1rem" }}>
       Visit the{" "}
         <Link
           href="https://www.youtube.com/channel/UCWPpKM7gNLRNUuA7V00Xi4g/playlists?view=1&sort=lad"
           target="_blank"
           rel="noopener"
           underline="none"
-          fontWeight={700}
+          sx={{ fontWeight: 700 }}
         >
           YouTube channel
         </Link>{" "}
@@ -25,7 +25,7 @@ const Footer = () => {
           target="_blank"
           rel="noopener"
           underline="none"
-          fontWeight={700}
+          sx={{ fontWeight: 700 }}
         >
           Twitch
         </Link>{" "}
@@ -35,7 +35,7 @@ const Footer = () => {
           target="_blank"
           rel="noopener"
           underline="none"
-          fontWeight={700}
+          sx={{ fontWeight: 700 }}
         >
           Twitter
         </Link>{" "}
@@ -45,7 +45,7 @@ const Footer = () => {
           target="_blank"
           rel="noopener"
           underline="none"
-          fontWeight={700}
+          sx={{ fontWeight: 700 }}
         >
           Instagram
         </Link>

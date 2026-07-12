@@ -11,38 +11,33 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { makeStyles } from "@mui/styles";
 import React, { useEffect, useState } from "react";
 
-const useStyles = makeStyles((theme) => ({
-  form: {
-    margin: "16px 0px 16px 16px",
-    minWidth: "30%",
-    "& .MuiInputLabel-outlined.Mui-focused, .MuiInputLabel-outlined": {
-      marginLeft: -8,
-      [theme.breakpoints.down("mobileCard")]: {
-        marginLeft: 0,
-      },
-    },
-    "& .MuiInputLabel-outlined.Mui-focused": {
-      color: "#DCDCFF",
-    },
-    "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      borderColor: "#DCDCFF",
-    },
-    "&:hover .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
-      borderColor: "rgba(255, 255, 255, 0.50)",
+const formStyles = (theme) => ({
+  margin: "16px 0px 16px 16px",
+  minWidth: "30%",
+  "& .MuiInputLabel-outlined.Mui-focused, & .MuiInputLabel-outlined": {
+    marginLeft: "-8px",
+    [theme.breakpoints.down("mobileCard")]: {
+      marginLeft: 0,
     },
   },
-}));
+  "& .MuiInputLabel-outlined.Mui-focused": {
+    color: "#DCDCFF",
+  },
+  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#DCDCFF",
+  },
+  "&:hover .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255, 255, 255, 0.50)",
+  },
+});
 
 const SearchBar = ({ handleSearch, tags, onRemoveTag }) => {
   const [searchInput, setSearchInput] = useState("");
 
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("mobileCard"));
-
-  const classes = useStyles();
 
   const handleDelete = (tag) => () => {
     if (onRemoveTag) {
@@ -55,7 +50,7 @@ const SearchBar = ({ handleSearch, tags, onRemoveTag }) => {
   }, [searchInput, handleSearch]);
 
   return (
-    <FormControl variant="outlined" className={classes.form}>
+    <FormControl variant="outlined" sx={formStyles}>
       <InputLabel
         htmlFor="Searchbar"
         sx={{
@@ -69,7 +64,7 @@ const SearchBar = ({ handleSearch, tags, onRemoveTag }) => {
       <OutlinedInput
         startAdornment={
           tags.length > 0 ? (
-            <Stack direction="row" spacing={1} marginRight="8px">
+            <Stack direction="row" spacing={1} sx={{ mr: "8px" }}>
               {tags.map((tag) => {
                 return (
                   <Chip

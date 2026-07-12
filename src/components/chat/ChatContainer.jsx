@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
-import axios from 'axios';
 import ChatMessage from './ChatMessage';
-import { API_URL } from '../../utils/constants';
+import { getErrorStatus, isRequestCanceled, vodsApi } from '../../api/vodsApi';
 import '../../styles/ChatContainer.css';
 
 const PRELOAD_AHEAD_SECONDS = 600;
@@ -145,6 +144,7 @@ export default function ChatContainer({
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
   const seekingRef = useRef(false);
+  const rangeAbortControllerRef = useRef(new AbortController());
 
   useEffect(() => {
     const vid = videoId;
@@ -176,17 +176,19 @@ export default function ChatContainer({
     lastRealTimeUpdateRef.current = 0;
 
     const controller = new AbortController();
+    rangeAbortControllerRef.current.abort();
+    rangeAbortControllerRef.current = new AbortController();
     
-    axios.get(`${API_URL}/chat/${vid}/metadata`, { signal: controller.signal })
-      .then(res => {
+    vodsApi.getChatMetadata(vid, { signal: controller.signal })
+      .then(data => {
         if (mountedVideoIdRef.current !== vid) return;
-        setMetadata(res.data);
+        setMetadata(data);
         setLoading(false);
       })
       .catch(err => {
-        if (axios.isCancel(err)) return;
+        if (isRequestCanceled(err)) return;
         if (mountedVideoIdRef.current !== vid) return;
-        if (err.response?.status === 404) {
+        if (getErrorStatus(err) === 404) {
           setError('No chat archived for this VoD');
         } else {
           setError('Failed to load chat');
@@ -194,7 +196,10 @@ export default function ChatContainer({
         setLoading(false);
       });
       
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      rangeAbortControllerRef.current.abort();
+    };
   }, [videoId]);
 
   // Preload emote and badge images for upcoming messages
@@ -408,11 +413,14 @@ export default function ChatContainer({
     if (mountedVideoIdRef.current !== targetVid) return [];
     
     try {
-      const res = await axios.get(`${API_URL}/chat/${targetVid}?start=${startSec}&end=${endSec}`);
+      const data = await vodsApi.getChatRange(targetVid, startSec, endSec, {
+        signal: rangeAbortControllerRef.current.signal,
+      });
       if (mountedVideoIdRef.current !== targetVid) return [];
       addLoadedRange(startSec, endSec);
-      return mergeChunkData(res.data, targetVid);
-    } catch {
+      return mergeChunkData(data, targetVid);
+    } catch (error) {
+      if (isRequestCanceled(error)) return [];
       return [];
     }
   }, [mergeChunkData, addLoadedRange]);

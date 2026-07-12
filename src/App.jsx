@@ -9,7 +9,7 @@ import {
   useTheme,
 } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import Footer from "./components/Footer";
 import GameBox from "./components/GameBox";
@@ -18,20 +18,23 @@ import PlaylistPage from "./components/PlaylistPage";
 import GameBoxSkeleton from "./components/GameBoxSkeleton";
 import Logo from "./components/navbar/Logo";
 import SearchBar from "./components/navbar/SearchBar";
-import { API_URL } from "./utils/constants";
-import axios from "axios";
+import { isRequestCanceled, vodsApi } from "./api/vodsApi";
+import { SITE_TITLE } from "./utils/site";
 
 const App = () => {
   const theme = useTheme();
-  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isVideoPage = location.pathname.startsWith('/video/');
-  const isHomePage = location.pathname === '/';
+  const videoId = searchParams.get("video");
+  const playlistId = searchParams.get("playlist");
+  const isVideoPage = Boolean(videoId);
+  const isHomePage = !videoId && !playlistId;
   const [searchResults, setSearchResults] = useState([]);
   const [pageCount] = useState(1);
   const [page, setPage] = useState(1);
   const [initialGamesLoad, setinitialGamesLoad] = useState(Boolean);
   const [initialGames, setinitialGames] = useState([]);
+  const [catalogError, setCatalogError] = useState(null);
   const [searchInput, setSearchInput] = useState("");
   const [tagArray, setTagArray] = useState([]);
   const [searchKey, setSearchKey] = useState(0);
@@ -45,17 +48,31 @@ const App = () => {
   }, [isHomePage]);
 
   useEffect(() => {
-    document.title = "tsunami's twitch vods";
+    const controller = new AbortController();
+    let active = true;
+
+    document.title = SITE_TITLE;
     setinitialGamesLoad(true);
     setinitialGames([]);
+    setCatalogError(null);
     
-    axios.get(`${API_URL}/getvods`)
-      .then((response) => {
-        const gameDatabase = response.data;
+    vodsApi.getCatalog({ signal: controller.signal })
+      .then((gameDatabase) => {
+        if (!active) return;
         setinitialGames(gameDatabase);
         setSearchResults(gameDatabase);
         setinitialGamesLoad(false);
+      })
+      .catch((error) => {
+        if (isRequestCanceled(error) || !active) return;
+        setCatalogError("Unable to load the VOD catalog");
+        setinitialGamesLoad(false);
       });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, []);
 
   const filterGames = useCallback(() => {
@@ -107,15 +124,11 @@ const App = () => {
   };
 
   if (isVideoPage) {
-    return (
-      <Routes>
-        <Route path="/video/:id" element={<VideoPage />} />
-      </Routes>
-    );
+    return <VideoPage videoId={videoId} />;
   }
 
   return (
-    <Box display={"flex"} flexDirection={"column"} minHeight="100vh">
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <AppBar
         position="sticky"
         sx={{
@@ -130,31 +143,37 @@ const App = () => {
         </Toolbar>
       </AppBar>
 
-      <Box flex={1} display="flex" flexDirection="column">
-        <Routes>
-          <Route path="/playlist/:id" element={<PlaylistPage />} />
-          <Route path="/" element={
-            <>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {playlistId ? (
+          <PlaylistPage playlistId={playlistId} />
+        ) : (
+          <>
               <Box
-                p={mobile ? "8px 8px 16px 8px" : 2}
-                display={"flex"}
-                flexWrap={"wrap"}
-                justifyContent={"center"}
-                alignContent={"flex-start"}
-                minHeight={{
-                  xs: "calc(100vh - 384px)",
-                  mobileCard: "calc(100vh - 387px)",
-                  sm: "calc(100vh - 369px)",
+                sx={{
+                  p: mobile ? "8px 8px 16px 8px" : 2,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                  alignContent: "flex-start",
+                  minHeight: {
+                    xs: "calc(100vh - 384px)",
+                    mobileCard: "calc(100vh - 387px)",
+                    sm: "calc(100vh - 369px)",
+                  },
                 }}
               >
                 {initialGamesLoad ? (
                   <GameBoxSkeleton />
+                ) : catalogError ? (
+                  <Typography variant="h5" sx={{ p: 3 }}>
+                    {catalogError}
+                  </Typography>
                 ) : searchResults.length ? (
                   searchResults.map((gameData, index) => (
                     <GameBox data={gameData} addTag={addTag} clearSearch={clearSearch} key={index} />
                   ))
                 ) : (
-                  <Typography variant="h5" padding={3}>
+                  <Typography variant="h5" sx={{ p: 3 }}>
                     No Results
                   </Typography>
                 )}
@@ -162,16 +181,15 @@ const App = () => {
 
               <Pagination
                 count={pageCount}
-                size={mobile ? "small" : ""}
+                size={mobile ? "small" : "medium"}
                 page={page}
                 onChange={handleChange}
                 sx={{ mb: 2, alignSelf: "center" }}
               />
 
               <Divider flexItem />
-            </>
-          } />
-        </Routes>
+          </>
+        )}
       </Box>
 
       <Footer />

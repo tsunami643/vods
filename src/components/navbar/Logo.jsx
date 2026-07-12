@@ -1,6 +1,7 @@
 import { Box, Link, Typography, useTheme } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import logo from "../../images/logo.png";
+import { routes } from "../../utils/routes";
 
 const Logo = () => {
   const theme = useTheme();
@@ -8,11 +9,11 @@ const Logo = () => {
   return (
     <Link
       component={RouterLink}
-      to="/"
+      to={routes.home}
       underline="none"
-      alignItems="center"
-      display={"flex"}
       sx={{
+        alignItems: "center",
+        display: "flex",
         transition: 'text-shadow 150ms linear',
         '&:hover': {
           textShadow: '0 0 10px rgba(220, 220, 255, 0.9)'
@@ -27,15 +28,17 @@ const Logo = () => {
       }}
     >
       <img src={logo} height={50} style={{borderRadius: '9000px'}}alt="logo" />
-      <Box marginLeft={2} display={{ xs: "none", sm: "block" }}>
-        <Typography fontSize={25} fontWeight={700} sx={{transition:'text-shadow 120ms ease'}}>
+      <Box sx={{ ml: 2, display: { xs: "none", sm: "block" } }}>
+        <Typography sx={{ fontSize: 25, fontWeight: 700, transition: 'text-shadow 120ms ease' }}>
           tsunami's twitch vods
         </Typography>
         <Typography
-          fontSize={12}
-          fontWeight={500}
-          color={theme.palette.text.primary}
-          sx={{transition:'text-shadow 120ms ease'}}
+          sx={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: theme.palette.text.primary,
+            transition: 'text-shadow 120ms ease',
+          }}
         >
           A catalog of games played on stream
         </Typography>

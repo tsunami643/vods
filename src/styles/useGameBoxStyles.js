@@ -1,12 +1,10 @@
-import { makeStyles } from "@mui/styles";
-
-const useGameBoxStyles = makeStyles((theme) => ({
-  card: {
-    margin: 8,
+const gameBoxStyles = {
+  card: (theme) => ({
+    margin: "8px",
     width: 580,
     height: 175,
     backgroundImage: "none",
-    borderRadius: 10,
+    borderRadius: "10px",
     display: "flex",
     boxShadow: "none",
     transition: "transform 150ms ease, box-shadow 150ms ease",
@@ -15,36 +13,36 @@ const useGameBoxStyles = makeStyles((theme) => ({
       boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
     },
     [theme.breakpoints.down("mobileCard")]: {
-      margin: 4,
+      margin: "4px",
       width: "100%",
       minWidth: "320px",
       height: "150px",
     },
-  },
-  cardMedia: {
+  }),
+  cardMedia: (theme) => ({
     maxWidth: 120,
     backgroundColor: "rgba(255, 255, 255, 0.16)",
     [theme.breakpoints.down("sm")]: {
       maxWidth: 100,
     },
-  },
-  cardContent: {
+  }),
+  cardContent: (theme) => ({
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
     overflow: "hidden",
     width: "100%",
-    "&:last-child": { paddingBottom: 16 },
+    "&:last-child": { paddingBottom: "16px" },
     [theme.breakpoints.down("mobileCard")]: {
-      padding: 8,
+      padding: "8px",
       alignItems: "center",
       justifyContent: "space-around",
       "&:last-child": {
-        paddingBottom: 8,
+        paddingBottom: "8px",
       },
     },
-  },
-  title: {
+  }),
+  title: (theme) => ({
     color: "white",
     textAlign: "center",
     fontSize: 20,
@@ -52,15 +50,8 @@ const useGameBoxStyles = makeStyles((theme) => ({
     [theme.breakpoints.down("mobileCard")]: {
       fontSize: 16,
     },
-  },
-  skeleton: {
-    width: 130,
-    [theme.breakpoints.down("mobileCard")]: {
-      width: 80,
-      height: 40,
-    },
-  },
-  streamInfo: {
+  }),
+  streamInfo: (theme) => ({
     width: "100%",
     display: "flex",
     textAlign: "center",
@@ -70,11 +61,11 @@ const useGameBoxStyles = makeStyles((theme) => ({
     },
     [theme.breakpoints.between("mobileCard", "sm")]: {
       width: "auto",
-      marginLeft: 8,
+      marginLeft: "8px",
       flexBasis: "70%",
     },
-  },
-  tagBox: {
+  }),
+  tagBox: (theme) => ({
     display: "flex",
     justifyContent: "flex-start",
     alignItems: "center",
@@ -85,12 +76,13 @@ const useGameBoxStyles = makeStyles((theme) => ({
     },
     [theme.breakpoints.between("mobileCard", "sm")]: {
       width: "auto",
-      marginLeft: 8,
+      marginLeft: "8px",
       flexBasis: "70%",
     },
-  },
+  }),
   tags: {
-    marginLeft: 8,
+    marginLeft: "8px",
+    justifyContent: "flex-start",
     overflowX: "scroll",
     msOverflowStyle: "none",
     scrollbarWidth: "none",
@@ -98,7 +90,7 @@ const useGameBoxStyles = makeStyles((theme) => ({
       display: "none",
     },
   },
-  youtube: {
+  youtube: (theme) => ({
     display: "flex",
     justifyContent: "center",
     flexBasis: "33.3333%",
@@ -112,13 +104,13 @@ const useGameBoxStyles = makeStyles((theme) => ({
     [theme.breakpoints.down("mobileCard")]: {
       fontSize: 40,
     },
-  },
+  }),
   streamsHover: {
     transition: "text-shadow 120ms ease, transform 120ms ease",
     "&:hover": {
       textShadow: "0 0 5px rgba(220, 220, 255, 0.9)",
     },
   },
-}));
+};
 
-export default useGameBoxStyles;
+export default gameBoxStyles;

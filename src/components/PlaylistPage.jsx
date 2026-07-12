@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
-import { API_URL } from '../utils/constants';
+import { Link } from 'react-router-dom';
+import { getErrorStatus, isRequestCanceled, vodsApi } from '../api/vodsApi';
+import { routes } from '../utils/routes';
 import '../styles/PlaylistPage.css';
 
 function formatDate(iso) {
@@ -19,16 +19,35 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function PlaylistPage() {
-  const { id } = useParams();
+export default function PlaylistPage({ playlistId }) {
+  const id = playlistId;
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
     setLoading(true);
-    axios.get(`${API_URL}/playlist/${id}`)
-      .then(res => setPlaylist(res.data))
-      .finally(() => setLoading(false));
+    setError(null);
+    vodsApi.getPlaylist(id, { signal: controller.signal })
+      .then(data => {
+        if (active) setPlaylist(data);
+      })
+      .catch(requestError => {
+        if (isRequestCanceled(requestError) || !active) return;
+        setPlaylist(null);
+        setError(getErrorStatus(requestError) === 404 ? "Playlist not found" : "Unable to load playlist");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [id]);
 
   if (loading) {
@@ -39,10 +58,10 @@ export default function PlaylistPage() {
     );
   }
 
-  if (!playlist) {
+  if (error || !playlist) {
     return (
       <div className="playlist-page">
-        <div className="playlist-error">Playlist not found</div>
+        <div className="playlist-error">{error || "Playlist not found"}</div>
       </div>
     );
   }
@@ -63,7 +82,7 @@ export default function PlaylistPage() {
         {playlist.videos?.map((video, index) => (
           <Link
             key={video.youtubeId}
-            to={`/video/${video.youtubeId}`}
+            to={routes.video(video.youtubeId)}
             className="video-item"
           >
             <span className="video-index">{index + 1}</span>

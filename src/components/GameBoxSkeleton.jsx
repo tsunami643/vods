@@ -5,14 +5,14 @@ const GameBoxSkeleton = () => {
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
   return (
     <>
-      <Box margin={2}>
+      <Box sx={{ m: 2 }}>
         <Skeleton
           variant="rectangular"
           width={mobile ? 300 : 580}
           height={mobile ? 150 : 175}
         />
       </Box>
-      <Box margin={2}>
+      <Box sx={{ m: 2 }}>
         <Skeleton
           variant="rectangular"
           width={mobile ? 300 : 580}
