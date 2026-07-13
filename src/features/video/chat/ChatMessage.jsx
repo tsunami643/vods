@@ -1,45 +1,17 @@
 import React from 'react';
-import { calculateColor } from '../../utils/colorReplace';
+import { calculateColor } from './colorReplace';
+import {
+  createCheermoteRegex,
+  getBadgeUrl,
+  getCheermoteTier,
+  getCheermoteUrl,
+  getEmoteUrl,
+} from './chatAssets';
 import Tooltip from './Tooltip';
-import { videoHref } from '../../utils/routes';
+import { videoHref } from '../../../routes';
 
-function getEmoteUrl(emote, size = '1x') {
-  switch (emote.source) {
-    case 'BetterTTV Global':
-    case 'BetterTTV Channel':
-      return `https://cdn.betterttv.net/emote/${emote.id}/${size}`;
-    case 'FrankerFaceZ Global':
-    case 'FrankerFaceZ Channel':
-      return `https://cdn.frankerfacez.com/emote/${emote.id}/${size === '1x' ? '1' : size === '2x' ? '2' : '4'}`;
-    case '7TV Global':
-    case '7TV Channel':
-      return `https://cdn.7tv.app/emote/${emote.id}/${size}`;
-    case 'Twitch':
-    default:
-      return `https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/${size === '1x' ? '1.0' : size === '2x' ? '2.0' : '3.0'}`;
-  }
-}
-
-// Cheermote patterns and tiers
-const CHEERMOTE_NAMES = [
-  'cheer', 'doodlecheer', 'biblethump', 'cheerwhal', 'corgo', 'scoops', 'uni',
-  'showlove', 'party', 'seemsgood', 'pride', 'kappa', 'frankerz', 'heyguys',
-  'dansgame', 'elegiggle', 'trihard', 'kreygasm', '4head', 'swiftrage',
-  'notlikethis', 'failfish', 'vohiyo', 'pjsalt', 'mrdestructoid', 'bday',
-  'ripcheer', 'shamrock', 'bitboss', 'streamlabs', 'muxy', 'holidaycheer',
-  'goal', 'anon', 'charity'
-];
-
-const CHEERMOTE_REGEX = new RegExp(`(?<!\\w)(${CHEERMOTE_NAMES.join('|')})(\\d+)(?!\\w)`, 'gi');
+const CHEERMOTE_REGEX = createCheermoteRegex();
 const CHAT_LINK_REGEX = /\b((?:https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s<]*)/gi;
-
-function getCheermoteTier(amount) {
-  if (amount >= 10000) return { tier: '10000', color: '#f43021' };
-  if (amount >= 5000) return { tier: '5000', color: '#0099fe' };
-  if (amount >= 1000) return { tier: '1000', color: '#1db2a5' };
-  if (amount >= 100) return { tier: '100', color: '#9c3ee8' };
-  return { tier: '1', color: '#979797' };
-}
 
 function EmoteTooltipContent({ name, source = 'Twitch' }) {
   return (
@@ -52,8 +24,7 @@ function EmoteTooltipContent({ name, source = 'Twitch' }) {
 
 function Cheermote({ name, amount }) {
   const { tier, color } = getCheermoteTier(amount);
-  const baseUrl = `https://d3aqoihi2n8ty8.cloudfront.net/actions/${name.toLowerCase()}/dark/animated/${tier}/`;
-  const urls = [baseUrl + '1.gif', baseUrl + '2.gif', baseUrl + '4.gif'];
+  const urls = ['1x', '2x', '3x'].map(size => getCheermoteUrl(name, tier, size));
   const srcset = urls.slice(1).map((u, i) => `${u} ${i + 2}x`).join(', ');
   
   return (
@@ -255,8 +226,8 @@ export default function ChatMessage({
               >
                 <img
                   className="badge-img"
-                  src={`https://static-cdn.jtvnw.net/badges/v1/${badge.url}/1`}
-                  srcSet={`https://static-cdn.jtvnw.net/badges/v1/${badge.url}/2 2x, https://static-cdn.jtvnw.net/badges/v1/${badge.url}/3 3x`}
+                  src={getBadgeUrl(badge, '1x')}
+                  srcSet={`${getBadgeUrl(badge, '2x')} 2x, ${getBadgeUrl(badge, '3x')} 3x`}
                   alt={badge.title}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />

@@ -1,9 +1,44 @@
-import { Box, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  Box,
+  Chip,
+  Card,
+  CardContent,
+  CardMedia,
+  Skeleton,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { faYoutube } from "@fortawesome/free-brands-svg-icons";
-import gameBoxStyles from "../styles/useGameBoxStyles";
-import { routes } from "../utils/routes";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Link as RouterLink } from "react-router-dom";
+import { routes } from "../../routes";
+import "../../styles/GameBox.css";
+
+export const GameBoxSkeleton = () => {
+  const theme = useTheme();
+  const mobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  return (
+    <>
+      <Box sx={{ m: 2 }}>
+        <Skeleton
+          variant="rectangular"
+          width={mobile ? 300 : 580}
+          height={mobile ? 150 : 175}
+        />
+      </Box>
+      <Box sx={{ m: 2 }}>
+        <Skeleton
+          variant="rectangular"
+          width={mobile ? 300 : 580}
+          height={mobile ? 150 : 175}
+        />
+      </Box>
+    </>
+  );
+};
 
 const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
   const theme = useTheme();
@@ -56,7 +91,7 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
         onClick={(e) => e.stopPropagation()}
         style={{ textDecoration: 'none' }}
       >
-        <Box sx={gameBoxStyles.youtube}>
+        <Box className="game-box-youtube">
           <FontAwesomeIcon icon={faYoutube} />
         </Box>
       </RouterLink>
@@ -66,8 +101,8 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
         style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', flexBasis: '33.3333%' }}
       >
         <Box
+          className="game-box-streams"
           sx={{
-            ...gameBoxStyles.streamsHover,
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
@@ -99,4 +134,52 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
   );
 };
 
-export default StreamInfo;
+const GameBox = ({ data, addTag, clearSearch }) => {
+  const handleTagClick = (tag) => (e) => {
+    e.stopPropagation();
+    if (clearSearch) clearSearch();
+    addTag(tag);
+  };
+
+  return (
+    <Card className="game-box">
+      <CardMedia
+        component="img"
+        image={data.gameCover}
+        alt={`${data.gameName} Cover`}
+        loading="lazy"
+        decoding="async"
+        className="game-box-media"
+      />
+      <CardContent className="game-box-content">
+        <Typography className="game-box-title">{data.gameName}</Typography>
+        <Box className="game-box-stream-info">
+          <StreamInfo
+            dateCompleted={data.dateCompleted}
+            playlistId={data.playlistId}
+            firstVideo={data.firstVideo}
+            streams={data.streams}
+          />
+        </Box>
+        <Box className="game-box-tag-box">
+          <Typography sx={{ color: "white", fontSize: 12, fontWeight: 700 }}>
+            Tags:
+          </Typography>
+          <Stack
+            className="game-box-tags"
+            direction="row"
+            spacing={1}
+          >
+            {data.tags.map((tag, key) => {
+              return (
+                <Chip label={tag} onClick={handleTagClick(tag)} size="small" key={key} />
+              );
+            })}
+          </Stack>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default GameBox;

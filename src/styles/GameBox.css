@@ -1,0 +1,138 @@
+.game-box.MuiCard-root {
+  display: flex;
+  width: 580px;
+  height: 175px;
+  margin: 8px;
+  background-image: none;
+  border-radius: 10px;
+  box-shadow: none;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.game-box.MuiCard-root:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.game-box .game-box-media {
+  max-width: 120px;
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.game-box .game-box-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  overflow: hidden;
+}
+
+.game-box .game-box-content:last-child {
+  padding-bottom: 16px;
+}
+
+.game-box .game-box-title {
+  color: white;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.game-box-stream-info {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+}
+
+.game-box-tag-box {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.game-box-tags {
+  justify-content: flex-start;
+  margin-left: 8px;
+  overflow-x: scroll;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.game-box-tags::-webkit-scrollbar {
+  display: none;
+}
+
+.game-box-youtube {
+  display: flex;
+  flex-basis: 33.3333%;
+  justify-content: center;
+  color: #fff;
+  font-size: 55px;
+  cursor: pointer;
+  transition: text-shadow 120ms ease;
+}
+
+.game-box-youtube:hover {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+.game-box-streams {
+  transition: text-shadow 120ms ease, transform 120ms ease;
+}
+
+.game-box-streams:hover {
+  text-shadow: 0 0 5px rgba(220, 220, 255, 0.9);
+}
+
+@media (max-width: 599.95px) {
+  .game-box .game-box-media {
+    max-width: 100px;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 599.95px) {
+  .game-box-stream-info,
+  .game-box-tag-box {
+    flex-basis: 70%;
+    width: auto;
+    margin-left: 8px;
+  }
+}
+
+@media (max-width: 479.95px) {
+  .game-box.MuiCard-root {
+    width: 100%;
+    min-width: 320px;
+    height: 150px;
+    margin: 4px;
+  }
+
+  .game-box .game-box-content {
+    align-items: center;
+    justify-content: space-around;
+    padding: 8px;
+  }
+
+  .game-box .game-box-content:last-child {
+    padding-bottom: 8px;
+  }
+
+  .game-box .game-box-title {
+    font-size: 16px;
+  }
+
+  .game-box-stream-info {
+    margin-left: 0;
+  }
+
+  .game-box-tag-box {
+    justify-content: center;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .game-box-youtube {
+    font-size: 40px;
+  }
+}

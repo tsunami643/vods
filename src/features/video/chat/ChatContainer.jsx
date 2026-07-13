@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import ChatMessage from './ChatMessage';
-import { getErrorStatus, isRequestCanceled, vodsApi } from '../../api/vodsApi';
-import '../../styles/ChatContainer.css';
+import { getErrorStatus, isRequestCanceled, vodsApi } from '../../../shared/vodsApi';
+import {
+  findCheermotes,
+  getAssetSizeForDpr,
+  getBadgeUrl,
+  getCheermoteTier,
+  getCheermoteUrl,
+  getEmoteUrl,
+} from './chatAssets';
+import '../../../styles/ChatContainer.css';
 
 const PRELOAD_AHEAD_SECONDS = 600;
+const ASSET_PRELOAD_LOOKAHEAD_SECONDS = 30;
+const ASSET_PRELOAD_BUCKET_SECONDS = 10;
+const MAX_ASSET_PRELOADS_PER_SWEEP = 15;
 const SCREEN_LIMIT = 100;
 
 /**
@@ -146,6 +157,16 @@ export default function ChatContainer({
   const resizeStartWidthRef = useRef(0);
   const seekingRef = useRef(false);
   const rangeAbortControllerRef = useRef(new AbortController());
+  const isUserAtBottomRef = useRef(true);
+  const assetScrollFrameRef = useRef(null);
+  const requestedAssetUrlsRef = useRef(new Set());
+  const inFlightAssetImagesRef = useRef(new Map());
+  const assetPreloadSweepRef = useRef({ bucket: -1, requestCount: 0, videoId });
+  const playbackTimeRef = useRef(0);
+
+  const adjustedPlaybackTime = Math.max(0, currentTime - delayTime);
+  const assetPreloadBucket = Math.floor(adjustedPlaybackTime / ASSET_PRELOAD_BUCKET_SECONDS);
+  playbackTimeRef.current = adjustedPlaybackTime;
 
   useEffect(() => {
     const vid = videoId;
@@ -161,6 +182,7 @@ export default function ChatContainer({
     setError(null);
     setSeekLoading(false);
     setIsUserAtBottom(true);
+    isUserAtBottomRef.current = true;
     setUnseenMessages(0);
     unseenMessageIdsRef.current.clear();
     
@@ -171,6 +193,14 @@ export default function ChatContainer({
     emoteMapRef.current = new Map();
     userMapRef.current = new Map();
     loadedRangesRef.current = [];
+    pendingScrollRef.current = false;
+    requestedAssetUrlsRef.current = new Set();
+    inFlightAssetImagesRef.current = new Map();
+    assetPreloadSweepRef.current = { bucket: -1, requestCount: 0, videoId: vid };
+    if (assetScrollFrameRef.current !== null) {
+      cancelAnimationFrame(assetScrollFrameRef.current);
+      assetScrollFrameRef.current = null;
+    }
     if (pendingLoadRef.current) {
       clearTimeout(pendingLoadRef.current);
       pendingLoadRef.current = null;
@@ -203,96 +233,6 @@ export default function ChatContainer({
       rangeAbortControllerRef.current.abort();
     };
   }, [videoId]);
-
-  // Preload emote and badge images for upcoming messages
-  const preloadImages = useCallback((messages) => {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const emoteSize = dpr >= 2 ? '2x' : '1x';
-    
-    const CHEERMOTE_NAMES = [
-      'cheer', 'doodlecheer', 'biblethump', 'cheerwhal', 'corgo', 'scoops', 'uni',
-      'showlove', 'party', 'seemsgood', 'pride', 'kappa', 'frankerz', 'heyguys',
-      'dansgame', 'elegiggle', 'trihard', 'kreygasm', '4head', 'swiftrage',
-      'notlikethis', 'failfish', 'vohiyo', 'pjsalt', 'mrdestructoid', 'bday',
-      'ripcheer', 'shamrock', 'bitboss', 'streamlabs', 'muxy', 'holidaycheer',
-      'goal', 'anon', 'charity'
-    ];
-    const CHEERMOTE_REGEX = new RegExp(`(?<!\\w)(${CHEERMOTE_NAMES.join('|')})(\\d+)(?!\\w)`, 'gi');
-    
-    const getCheermoteTier = (amount) => {
-      if (amount >= 10000) return '10000';
-      if (amount >= 5000) return '5000';
-      if (amount >= 1000) return '1000';
-      if (amount >= 100) return '100';
-      return '1';
-    };
-    
-    messages.forEach(msg => {
-      // Preload emotes
-      if (msg.emotes) {
-        msg.emotes.forEach(([emoteIdx]) => {
-          const emote = emoteList[emoteIdx];
-          if (!emote) return;
-          
-          let url;
-          switch (emote.source) {
-            case 'BetterTTV Global':
-            case 'BetterTTV Channel':
-              url = `https://cdn.betterttv.net/emote/${emote.id}/${emoteSize}`;
-              break;
-            case 'FrankerFaceZ Global':
-            case 'FrankerFaceZ Channel':
-              url = `https://cdn.frankerfacez.com/emote/${emote.id}/${emoteSize === '1x' ? '1' : '2'}`;
-              break;
-            case '7TV Global':
-            case '7TV Channel':
-              url = `https://cdn.7tv.app/emote/${emote.id}/${emoteSize}`;
-              break;
-            case 'Twitch':
-            default:
-              url = `https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/${emoteSize === '1x' ? '1.0' : '2.0'}`;
-          }
-          
-          const img = new Image();
-          img.src = url;
-        });
-      }
-      
-      // Preload badges
-      if (msg.badges) {
-        msg.badges.forEach(badgeIdx => {
-          const badge = badgeList[badgeIdx];
-          if (!badge) return;
-          
-          const img = new Image();
-          img.src = `https://static-cdn.jtvnw.net/badges/v1/${badge.url}/1`;
-        });
-      }
-      
-      if (msg.message) {
-        CHEERMOTE_REGEX.lastIndex = 0;
-        let match;
-        const preloadedCheers = new Set(); // Avoid duplicate preloads
-        
-        while ((match = CHEERMOTE_REGEX.exec(msg.message)) !== null) {
-          const name = match[1].toLowerCase();
-          const amount = parseInt(match[2], 10);
-          const tier = getCheermoteTier(amount);
-          const key = `${name}-${tier}`;
-          
-          if (!preloadedCheers.has(key)) {
-            preloadedCheers.add(key);
-            
-            const baseUrl = `https://d3aqoihi2n8ty8.cloudfront.net/actions/${name}/dark/animated/${tier}/`;
-            ['1.gif', '2.gif', '4.gif'].forEach(file => {
-              const img = new Image();
-              img.src = baseUrl + file;
-            });
-          }
-        }
-      }
-    });
-  }, [emoteList, badgeList]);
 
   const mergeChunkData = useCallback((data, targetVid) => {
     if (mountedVideoIdRef.current !== targetVid) return [];
@@ -354,13 +294,10 @@ export default function ChatContainer({
         if (mountedVideoIdRef.current !== targetVid) return prev;
         return mergeSortedMessages(prev, processedMessages);
       });
-      
-      // Preload images for the newly loaded messages
-      preloadImages(processedMessages.slice(0, 50));
     }
     
     return processedMessages;
-  }, [preloadImages]);
+  }, []);
 
   const isRangeLoaded = useCallback((start, end) => {
     for (const range of loadedRangesRef.current) {
@@ -442,6 +379,102 @@ export default function ChatContainer({
     return allMessages;
   }, [findMissingRanges, loadSingleRange]);
 
+  const queueAssetPreload = useCallback((url) => {
+    if (!url || requestedAssetUrlsRef.current.has(url)) return false;
+
+    requestedAssetUrlsRef.current.add(url);
+    const image = new Image();
+    image.decoding = 'async';
+    inFlightAssetImagesRef.current.set(url, image);
+
+    image.onload = () => {
+      if (inFlightAssetImagesRef.current.get(url) === image) {
+        inFlightAssetImagesRef.current.delete(url);
+      }
+    };
+
+    image.onerror = () => {
+      if (inFlightAssetImagesRef.current.get(url) === image) {
+        inFlightAssetImagesRef.current.delete(url);
+        requestedAssetUrlsRef.current.delete(url);
+      }
+    };
+
+    image.src = url;
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (!metadata || loading || error || videoMessages.length === 0) return;
+
+    const startTime = playbackTimeRef.current;
+    const endTime = startTime + ASSET_PRELOAD_LOOKAHEAD_SECONDS;
+    const assetSize = getAssetSizeForDpr(window.devicePixelRatio || 1);
+    const startIndex = binarySearchByTime(videoMessages, startTime);
+    const sweep = assetPreloadSweepRef.current;
+
+    if (sweep.videoId !== videoId || sweep.bucket !== assetPreloadBucket) {
+      assetPreloadSweepRef.current = {
+        bucket: assetPreloadBucket,
+        requestCount: 0,
+        videoId,
+      };
+    }
+
+    const activeSweep = assetPreloadSweepRef.current;
+
+    const preload = (url) => {
+      if (activeSweep.requestCount >= MAX_ASSET_PRELOADS_PER_SWEEP) return;
+      if (queueAssetPreload(url)) activeSweep.requestCount += 1;
+    };
+
+    for (let index = startIndex; index < videoMessages.length; index += 1) {
+      const message = videoMessages[index];
+      if (message.time > endTime || activeSweep.requestCount >= MAX_ASSET_PRELOADS_PER_SWEEP) break;
+
+      for (const [emoteIndex] of message.emotes || []) {
+        if (activeSweep.requestCount >= MAX_ASSET_PRELOADS_PER_SWEEP) break;
+        const emote = emoteList[emoteIndex];
+        if (emote) preload(getEmoteUrl(emote, assetSize));
+      }
+
+      for (const cheer of findCheermotes(message.message || '')) {
+        if (activeSweep.requestCount >= MAX_ASSET_PRELOADS_PER_SWEEP) break;
+        const { tier } = getCheermoteTier(cheer.amount);
+        preload(getCheermoteUrl(cheer.name, tier, assetSize));
+      }
+
+      for (const badgeIndex of message.badges || []) {
+        if (activeSweep.requestCount >= MAX_ASSET_PRELOADS_PER_SWEEP) break;
+        const badge = badgeList[badgeIndex];
+        if (badge) preload(getBadgeUrl(badge, assetSize));
+      }
+    }
+  }, [
+    assetPreloadBucket,
+    badgeList,
+    emoteList,
+    error,
+    loading,
+    metadata,
+    queueAssetPreload,
+    videoId,
+    videoMessages,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (assetScrollFrameRef.current !== null) {
+        cancelAnimationFrame(assetScrollFrameRef.current);
+      }
+      for (const image of inFlightAssetImagesRef.current.values()) {
+        image.onload = null;
+        image.onerror = null;
+      }
+      inFlightAssetImagesRef.current.clear();
+    };
+  }, []);
+
   useEffect(() => {
     if (!metadata || loading || error) return;
     
@@ -490,6 +523,7 @@ export default function ChatContainer({
         
         setDisplayedMessages(toShow);
         setIsUserAtBottom(true);
+        isUserAtBottomRef.current = true;
         setUnseenMessages(0);
         unseenMessageIdsRef.current.clear();
       }).catch(() => {
@@ -550,14 +584,18 @@ export default function ChatContainer({
   useEffect(() => {
     if (!pendingScrollRef.current || !messagesRef.current) return;
     
-    pendingScrollRef.current = false;
     const el = messagesRef.current;
     
     requestAnimationFrame(() => {
+      if (!pendingScrollRef.current) {
+        setSeekLoading(false);
+        return;
+      }
       requestAnimationFrame(() => {
-        if (el) {
+        if (pendingScrollRef.current && el) {
           el.scrollTop = el.scrollHeight;
         }
+        pendingScrollRef.current = false;
         setSeekLoading(false);
       });
     });
@@ -593,6 +631,21 @@ export default function ChatContainer({
   }, []);
 
   const scrollPreserveRef = useRef(null);
+
+  const handleChatAssetSettled = useCallback(() => {
+    if (!isUserAtBottomRef.current || !messagesRef.current) return;
+    if (assetScrollFrameRef.current !== null) return;
+
+    assetScrollFrameRef.current = requestAnimationFrame(() => {
+      assetScrollFrameRef.current = null;
+      if (!isUserAtBottomRef.current || !messagesRef.current) return;
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    });
+  }, []);
+
+  const handleUserScrollIntent = useCallback(() => {
+    pendingScrollRef.current = false;
+  }, []);
   
   const handleScroll = useCallback(() => {
     if (!messagesRef.current) return;
@@ -602,7 +655,10 @@ export default function ChatContainer({
     const { scrollTop, scrollHeight, clientHeight } = messagesRef.current;
     const atBottom = scrollHeight - scrollTop - clientHeight <= 20;
     const atTop = scrollTop <= 30;
+
+    if (pendingScrollRef.current && !atBottom) return;
     
+    isUserAtBottomRef.current = atBottom;
     setIsUserAtBottom(atBottom);
     if (atBottom) {
       unseenMessageIdsRef.current.clear();
@@ -655,6 +711,7 @@ export default function ChatContainer({
 
   const handleResumeScroll = () => {
     if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    isUserAtBottomRef.current = true;
     setIsUserAtBottom(true);
     unseenMessageIdsRef.current.clear();
     setUnseenMessages(0);
@@ -1019,6 +1076,11 @@ export default function ChatContainer({
         className="messages-container" 
         ref={messagesRef}
         onScroll={handleScroll}
+        onWheel={handleUserScrollIntent}
+        onPointerDown={handleUserScrollIntent}
+        onTouchStart={handleUserScrollIntent}
+        onLoadCapture={handleChatAssetSettled}
+        onErrorCapture={handleChatAssetSettled}
       >
         {loadingMore && (
           <div className="loading-more">

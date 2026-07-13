@@ -1,9 +1,9 @@
 import { Box, Link, Typography, useTheme } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import logo from "../../images/logo.png";
-import { routes } from "../../utils/routes";
+import { routes } from "../routes";
+import logo from "./logo.png";
 
-const Logo = () => {
+const Header = () => {
   const theme = useTheme();
 
   return (
@@ -47,4 +47,4 @@ const Logo = () => {
   );
 };
 
-export default Logo;
+export default Header;

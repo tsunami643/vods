@@ -1,79 +1,28 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { getErrorStatus, isRequestCanceled, vodsApi } from '../api/vodsApi';
-import { routes, videoHref } from '../utils/routes';
-import { getVideoDocumentTitle, SITE_TITLE } from '../utils/site';
-import { ChatContainer } from './chat';
-import logo from '../images/logo.png';
-import '../styles/VideoPage.css';
-
-function formatDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function formatDuration(seconds) {
-  if (!seconds) return '';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-function parseTimeToSeconds(input) {
-  if (input === null || input === undefined || input === '') return null;
-  const inputStr = String(input);
-  
-  if (/[hms]/i.test(inputStr)) {
-    const hMatch = inputStr.match(/(\d+)h/i);
-    const mMatch = inputStr.match(/(\d+)m/i);
-    const sMatch = inputStr.match(/(\d+)s/i);
-    return (hMatch ? parseInt(hMatch[1]) : 0) * 3600 +
-           (mMatch ? parseInt(mMatch[1]) : 0) * 60 +
-           (sMatch ? parseInt(sMatch[1]) : 0);
-  }
-  
-  const asNumber = parseInt(inputStr);
-  return (!isNaN(asNumber) && asNumber >= 0) ? asNumber : null;
-}
-
-function formatTimeForUrl(seconds) {
-  if (seconds === null || seconds === undefined || seconds < 0) return null;
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  let parts = [];
-  if (h > 0) parts.push(`${h}h`);
-  if (m > 0) parts.push(`${m}m`);
-  if (s > 0 || parts.length === 0) parts.push(`${s}s`);
-  return parts.join('');
-}
-
-function parseTimecode(ts) {
-  const parts = ts.split(':').map(Number);
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  return 0;
-}
-
-const descriptionTokenPattern = /https?:\/\/\S+|\b(?:\d{1,2}:)?\d{1,2}:\d{2}\b/g;
+import { routes, videoHref } from '../../routes';
+import { getErrorStatus, isRequestCanceled, vodsApi } from '../../shared/vodsApi';
+import {
+  formatDate,
+  formatDuration,
+  formatTimeForUrl,
+  getVideoDocumentTitle,
+  parseTimecode,
+  parseTimeToSeconds,
+  SITE_TITLE,
+  tokenizeDescription,
+} from './videoUtils';
+import ChatContainer from './chat/ChatContainer';
+import logo from '../../shared/logo.png';
+import '../../styles/VideoPage.css';
 
 function renderDescription(description, videoId, onSeek) {
-  const content = [];
-  let previousEnd = 0;
+  return tokenizeDescription(description).map((token) => {
+    if (token.type === 'text') return token.value;
 
-  for (const match of description.matchAll(descriptionTokenPattern)) {
-    const value = match[0];
-    const start = match.index;
-
-    if (start > previousEnd) {
-      content.push(description.slice(previousEnd, start));
-    }
-
-    if (value.startsWith('http://') || value.startsWith('https://')) {
-      content.push(
+    if (token.type === 'link') {
+      const { start, value } = token;
+      return (
         <a
           key={`link-${start}`}
           className="description-link"
@@ -84,31 +33,24 @@ function renderDescription(description, videoId, onSeek) {
           {value}
         </a>
       );
-    } else {
-      const seconds = parseTimecode(value);
-      content.push(
-        <a
-          key={`time-${start}`}
-          href={videoHref(videoId, formatTimeForUrl(seconds))}
-          className="description-link timecode"
-          onClick={(event) => {
-            event.preventDefault();
-            onSeek(seconds);
-          }}
-        >
-          {value}
-        </a>
-      );
     }
 
-    previousEnd = start + value.length;
-  }
-
-  if (previousEnd < description.length) {
-    content.push(description.slice(previousEnd));
-  }
-
-  return content;
+    const { start, value } = token;
+    const seconds = parseTimecode(value);
+    return (
+      <a
+        key={`time-${start}`}
+        href={videoHref(videoId, formatTimeForUrl(seconds))}
+        className="description-link timecode"
+        onClick={(event) => {
+          event.preventDefault();
+          onSeek(seconds);
+        }}
+      >
+        {value}
+      </a>
+    );
+  });
 }
 
 export default function VideoPage({ videoId }) {

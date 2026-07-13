@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getErrorStatus, isRequestCanceled, vodsApi } from '../api/vodsApi';
-import { routes } from '../utils/routes';
-import '../styles/PlaylistPage.css';
+import { routes } from '../../routes';
+import { getErrorStatus, isRequestCanceled, vodsApi } from '../../shared/vodsApi';
+import '../../styles/PlaylistPage.css';
 
 function formatDate(iso) {
   if (!iso) return '';
