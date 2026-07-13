@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { calculateColor } from './colorReplace';
 import {
   createCheermoteRegex,
@@ -11,7 +11,28 @@ import Tooltip from './Tooltip';
 import { videoHref } from '../../../routes';
 
 const CHEERMOTE_REGEX = createCheermoteRegex();
-const CHAT_LINK_REGEX = /\b((?:https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s<]*)/gi;
+const CHAT_TOKEN_REGEX = /@\S+|\b((?:https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s<]*)/gi;
+
+function findMentionRanges(message) {
+  const characters = Array.from(message);
+  const ranges = [];
+
+  for (let index = 0; index < characters.length; index += 1) {
+    if (characters[index] !== '@' || !characters[index + 1]
+      || /\s/u.test(characters[index + 1])) {
+      continue;
+    }
+
+    let end = index + 1;
+    while (end + 1 < characters.length && !/\s/u.test(characters[end + 1])) {
+      end += 1;
+    }
+    ranges.push({ start: index, end });
+    index = end;
+  }
+
+  return ranges;
+}
 
 function EmoteTooltipContent({ name, source = 'Twitch' }) {
   return (
@@ -55,11 +76,17 @@ function parseMessageContent(message, emotes, emoteList) {
   }
 
   const sortedEmotes = [...emotes].sort((a, b) => b[1] - a[1]);
+  const mentionRanges = findMentionRanges(message);
   const chars = Array.from(message);
   const parts = [];
   let lastIdx = chars.length;
 
   for (const [emoteIdx, start, end] of sortedEmotes) {
+    const overlapsMention = mentionRanges.some(
+      (mention) => start <= mention.end && end >= mention.start
+    );
+    if (overlapsMention) continue;
+
     const emote = emoteList[emoteIdx];
     if (!emote) continue;
 
@@ -89,16 +116,20 @@ function parseTextContent(text) {
   let lastIndex = 0;
   let match;
 
-  CHAT_LINK_REGEX.lastIndex = 0;
+  CHAT_TOKEN_REGEX.lastIndex = 0;
 
-  while ((match = CHAT_LINK_REGEX.exec(text)) !== null) {
+  while ((match = CHAT_TOKEN_REGEX.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(...parseCheermotes(text.slice(lastIndex, match.index)));
     }
 
     const label = match[0];
-    const href = /^https?:\/\//i.test(label) ? label : `https://${label}`;
-    parts.push({ type: 'link', content: label, href });
+    if (label.startsWith('@')) {
+      parts.push({ type: 'mention', content: label });
+    } else {
+      const href = /^https?:\/\//i.test(label) ? label : `https://${label}`;
+      parts.push({ type: 'link', content: label, href });
+    }
     lastIndex = match.index + label.length;
   }
 
@@ -176,7 +207,7 @@ function formatTimeForUrl(seconds, chatDelay = 0) {
   return parts.join('');
 }
 
-export default function ChatMessage({ 
+function ChatMessage({
   message, 
   user, 
   emoteList, 
@@ -242,6 +273,9 @@ export default function ChatMessage({
         <span className="chat-text">
           {parts.map((part, i) => {
             if (part.type === 'text') return <span key={i}>{part.content}</span>;
+            if (part.type === 'mention') {
+              return <span key={i} className="chat-mention">{part.content}</span>;
+            }
             if (part.type === 'link') {
               return (
                 <a
@@ -295,3 +329,5 @@ export default function ChatMessage({
     </div>
   );
 }
+
+export default memo(ChatMessage);

@@ -48,7 +48,6 @@ function renderDescription(description, videoId, onSeek) {
 export default function VideoInfo({
   descriptionRef,
   hideVideoInfo,
-  infoContainerRef,
   onInfoTouchEnd,
   onInfoTouchStart,
   onPartClick,
@@ -78,7 +77,6 @@ export default function VideoInfo({
 
   return (
     <div
-      ref={infoContainerRef}
       className={`info-container ${showDescription ? 'expanded' : ''} ${hideVideoInfo ? 'hidden' : ''}`}
       onTouchStart={onInfoTouchStart}
       onTouchEnd={onInfoTouchEnd}

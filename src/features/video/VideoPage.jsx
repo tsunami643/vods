@@ -8,6 +8,7 @@ import {
 import VideoInfo from './VideoInfo';
 import VideoPlayer from './VideoPlayer';
 import useVideoData from './useVideoData';
+import useVideoPageGestures from './useVideoPageGestures';
 import useVideoPlayback from './useVideoPlayback';
 import useYouTubePlayer from './useYouTubePlayer';
 import ChatContainer from './chat/ChatContainer';
@@ -38,12 +39,9 @@ export default function VideoPage({ videoId }) {
   const iframeRef = useRef(null);
   const descriptionRef = useRef(null);
   const descriptionOverflowCleanupRef = useRef(null);
-  const infoContainerRef = useRef(null);
-  const infoHeightRef = useRef(0);
   const partSelectorRef = useRef(null);
   const partDropdownRef = useRef(null);
   const dropdownScrolledRef = useRef(false);
-  const infoTouchRef = useRef({ time: 0, x: 0, y: 0 });
   const {
     currentTimeRef,
     initialTime,
@@ -201,49 +199,19 @@ export default function VideoPage({ videoId }) {
 
   const handleToggleHideInfo = useCallback((hide) => {
     setHideVideoInfo(hide);
-    if (hide && infoContainerRef.current) {
-      infoHeightRef.current = infoContainerRef.current.offsetHeight;
-    }
   }, []);
 
-  const handleInfoTouchStart = useCallback((e) => {
-    const touch = e.changedTouches[0];
-    infoTouchRef.current = { ...infoTouchRef.current, startX: touch.screenX, startY: touch.screenY };
-  }, []);
-
-  const handleInfoTouchEnd = useCallback((e) => {
-    const touch = e.changedTouches[0];
-    const endX = touch.screenX;
-    const endY = touch.screenY;
-    const startX = infoTouchRef.current.startX || 0;
-    const startY = infoTouchRef.current.startY || 0;
-    
-    const TAP_MOVE_THRESHOLD = 10;
-    const DOUBLE_TAP_DELAY = 300;
-    const DOUBLE_TAP_DISTANCE = 30;
-    
-    const absX = Math.abs(endX - startX);
-    const absY = Math.abs(endY - startY);
-    
-    if (absX < TAP_MOVE_THRESHOLD && absY < TAP_MOVE_THRESHOLD) {
-      const now = Date.now();
-      const timeDiff = now - (infoTouchRef.current.time || 0);
-      const distX = Math.abs(endX - (infoTouchRef.current.x || 0));
-      const distY = Math.abs(endY - (infoTouchRef.current.y || 0));
-      
-      if (
-        timeDiff < DOUBLE_TAP_DELAY &&
-        distX < DOUBLE_TAP_DISTANCE &&
-        distY < DOUBLE_TAP_DISTANCE
-      ) {
-        setHideVideoInfo(true);
-        infoTouchRef.current = { time: 0, x: 0, y: 0 };
-        return;
-      }
-      
-      infoTouchRef.current = { time: now, x: endX, y: endY };
-    }
-  }, []);
+  const hideVideoInfoFromGesture = useCallback(() => setHideVideoInfo(true), []);
+  const {
+    handleChatTouchEnd,
+    handleChatTouchStart,
+    handleInfoTouchEnd,
+    handleInfoTouchStart,
+  } = useVideoPageGestures({
+    isWideChat,
+    onHideVideoInfo: hideVideoInfoFromGesture,
+    onWideChatChange: setIsWideChat,
+  });
 
   const handleThemeChange = useCallback((theme) => {
     setPageTheme(theme);
@@ -268,7 +236,6 @@ export default function VideoPage({ videoId }) {
           <VideoInfo
             descriptionRef={descriptionRef}
             hideVideoInfo={hideVideoInfo}
-            infoContainerRef={infoContainerRef}
             onInfoTouchEnd={handleInfoTouchEnd}
             onInfoTouchStart={handleInfoTouchStart}
             onPartClick={handlePartClick}
@@ -291,13 +258,15 @@ export default function VideoPage({ videoId }) {
           youtubeVideoId={video.youtubeId}
           currentTime={currentTime}
           isPlaying={isPlaying}
+          isWideChat={isWideChat}
           onSeek={handleSeek}
           delayTime={3}
           onThemeChange={handleThemeChange}
           onHideVideoInfoChange={handleToggleHideInfo}
           hideVideoInfo={hideVideoInfo}
+          onChatTouchEnd={handleChatTouchEnd}
+          onChatTouchStart={handleChatTouchStart}
           theme={pageTheme}
-          onWideChatChange={setIsWideChat}
         />
       </div>
     </div>
