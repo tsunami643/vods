@@ -1,91 +1,88 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { routes, videoHref } from '../../routes';
-import { getErrorStatus, isRequestCanceled, vodsApi } from '../../shared/vodsApi';
+import { useNavigate } from 'react-router-dom';
+import { routes } from '../../routes';
 import {
-  formatDate,
-  formatDuration,
-  formatTimeForUrl,
   getVideoDocumentTitle,
-  parseTimecode,
-  parseTimeToSeconds,
   SITE_TITLE,
-  tokenizeDescription,
 } from './videoUtils';
+import VideoInfo from './VideoInfo';
+import VideoPlayer from './VideoPlayer';
+import useVideoData from './useVideoData';
+import useVideoPlayback from './useVideoPlayback';
+import useYouTubePlayer from './useYouTubePlayer';
 import ChatContainer from './chat/ChatContainer';
-import logo from '../../shared/logo.png';
 import '../../styles/VideoPage.css';
-
-function renderDescription(description, videoId, onSeek) {
-  return tokenizeDescription(description).map((token) => {
-    if (token.type === 'text') return token.value;
-
-    if (token.type === 'link') {
-      const { start, value } = token;
-      return (
-        <a
-          key={`link-${start}`}
-          className="description-link"
-          target="_blank"
-          rel="noopener noreferrer"
-          href={value}
-        >
-          {value}
-        </a>
-      );
-    }
-
-    const { start, value } = token;
-    const seconds = parseTimecode(value);
-    return (
-      <a
-        key={`time-${start}`}
-        href={videoHref(videoId, formatTimeForUrl(seconds))}
-        className="description-link timecode"
-        onClick={(event) => {
-          event.preventDefault();
-          onSeek(seconds);
-        }}
-      >
-        {value}
-      </a>
-    );
-  });
-}
 
 export default function VideoPage({ videoId }) {
   const id = videoId;
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [video, setVideo] = useState(null);
-  const [playlist, setPlaylist] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [showPartDropdown, setShowPartDropdown] = useState(false);
-  const [initialTime, setInitialTime] = useState(null);
   const [hideVideoInfo, setHideVideoInfo] = useState(false);
   const [isWideChat, setIsWideChat] = useState(false);
-  const [, setCurrentPlaylistIndex] = useState(-1);
   const [pageTheme, setPageTheme] = useState(() => {
     return localStorage.getItem('chatTheme') || 'blue';
   });
-  const playerRef = useRef(null);
-  const currentTimeRef = useRef(0);
-  const pendingSeekRef = useRef(null);
+  const resetCurrentTime = useCallback(() => setCurrentTime(0), []);
+  const {
+    activatePlaylistVideo,
+    loadError,
+    loading,
+    playlist,
+    playlistVideosRef,
+    video,
+  } = useVideoData(id, resetCurrentTime);
+  const playerTimeGetterRef = useRef(null);
+  const iframeRef = useRef(null);
   const descriptionRef = useRef(null);
-  const hasInitializedRef = useRef(false);
+  const descriptionOverflowCleanupRef = useRef(null);
   const infoContainerRef = useRef(null);
   const infoHeightRef = useRef(0);
   const partSelectorRef = useRef(null);
   const partDropdownRef = useRef(null);
   const dropdownScrolledRef = useRef(false);
   const infoTouchRef = useRef({ time: 0, x: 0, y: 0 });
-  const playlistVideosRef = useRef([]);
+  const {
+    currentTimeRef,
+    initialTime,
+    resetInitialTime,
+    savePlaybackState,
+    updateUrlTime,
+  } = useVideoPlayback({
+    currentTime,
+    playerTimeGetterRef,
+    playlist,
+    video,
+    videoId: id,
+  });
 
-  const lastInitializedIdRef = useRef(null);
+  const handlePlaylistVideoChange = useCallback((newVideo) => {
+    activatePlaylistVideo(newVideo);
+    setCurrentTime(0);
+    resetInitialTime();
+    setShowDescription(false);
+    navigate(routes.video(newVideo.youtubeId), { replace: true });
+  }, [activatePlaylistVideo, navigate, resetInitialTime]);
+
+  const closePartDropdown = useCallback(() => setShowPartDropdown(false), []);
+  const {
+    getCurrentTime: getPlayerCurrentTime,
+    playVideoAt,
+    seekTo,
+  } = useYouTubePlayer({
+    currentVideoId: video?.youtubeId,
+    enabled: !loading && Boolean(video),
+    iframeRef,
+    iframeId: playlist?.youtubeId || video?.youtubeId,
+    onPlayingChange: setIsPlaying,
+    onPlaylistVideoChange: handlePlaylistVideoChange,
+    onSignificantBuffer: closePartDropdown,
+    onTimeChange: setCurrentTime,
+    playlistVideosRef,
+  });
+  playerTimeGetterRef.current = getPlayerCurrentTime;
 
   useEffect(() => {
     document.title = getVideoDocumentTitle(video?.name);
@@ -94,322 +91,32 @@ export default function VideoPage({ videoId }) {
     };
   }, [video?.name]);
 
-  useEffect(() => {
-    currentTimeRef.current = currentTime;
-  }, [currentTime]);
-  
-  useEffect(() => {
-    if (lastInitializedIdRef.current !== id) {
-      hasInitializedRef.current = false;
-      lastInitializedIdRef.current = id;
-    }
-
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
-    setInitialTime(null);
-    
-    const timeParam = searchParams.get('time');
-    if (timeParam) {
-      const seconds = parseTimeToSeconds(timeParam);
-      if (seconds !== null && seconds >= 0) {
-        setInitialTime(seconds);
-        return;
-      }
-    }
-    
-    try {
-      const saved = localStorage.getItem('videoPlaybackState');
-      if (saved) {
-        const state = JSON.parse(saved);
-        if (state.videoId === id) {
-          setInitialTime(Math.max(0, state.time - 5));
-        }
-      }
-    } catch {
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, searchParams]);
-
-  const isPartSwitchRef = useRef(false);
-  
-  useEffect(() => {
-    if (isPartSwitchRef.current) {
-      isPartSwitchRef.current = false;
-      const idx = playlistVideosRef.current.findIndex(v => v.youtubeId === id);
-      if (idx >= 0) setCurrentPlaylistIndex(idx);
-      return;
-    }
-
-    const controller = new AbortController();
-    let active = true;
-    
-    setLoading(true);
-    setLoadError(null);
-    setVideo(null);
-    setPlaylist(null);
-    setCurrentTime(0);
-    setCurrentPlaylistIndex(-1);
-    
-    vodsApi.getVideo(id, { signal: controller.signal })
-      .then(data => {
-        if (!active) return null;
-        setVideo(data);
-        if (data.playlistYoutubeId) {
-          return vodsApi.getPlaylist(data.playlistYoutubeId, {
-            signal: controller.signal,
-          });
-        }
-        return null;
-      })
-      .then(playlistData => {
-        if (active && playlistData) {
-          setPlaylist(playlistData);
-          playlistVideosRef.current = playlistData.videos || [];
-          const idx = playlistData.videos?.findIndex(v => v.youtubeId === id) ?? -1;
-          setCurrentPlaylistIndex(idx);
-        }
-      })
-      .catch(error => {
-        if (!isRequestCanceled(error) && active) {
-          setVideo(null);
-          setPlaylist(null);
-          setLoadError(getErrorStatus(error) === 404 ? "Video not found" : "Unable to load video");
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [id]);
-
-  const currentVideoIdRef = useRef(video?.youtubeId);
-  useEffect(() => {
-    currentVideoIdRef.current = video?.youtubeId;
-  }, [video?.youtubeId]);
-
-  const lastProcessedTimeRef = useRef(0);
-  
-  useEffect(() => {
-    if (!playlist && !video) return;
-    
-    let cancelled = false;
-    let intervalId = null;
-    let player = null;
-    
-    function loadYT() {
-      return new Promise(resolve => {
-        if (window.YT?.Player) { resolve(); return; }
-        if (window.onYouTubeIframeAPIReadyCallbacks) {
-          window.onYouTubeIframeAPIReadyCallbacks.push(resolve);
-          return;
-        }
-        window.onYouTubeIframeAPIReadyCallbacks = [resolve];
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        window.onYouTubeIframeAPIReady = () => {
-          window.onYouTubeIframeAPIReadyCallbacks.forEach(cb => cb());
-          window.onYouTubeIframeAPIReadyCallbacks = null;
-        };
-        document.body.appendChild(tag);
-      });
-    }
-
-    const handleYTMessage = (event) => {
-      if (event.origin !== 'https://www.youtube.com') return;
-      
-      let data;
-      try {
-        data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-      } catch {
-        return;
-      }
-      
-      if (data?.event === 'infoDelivery' && Number.isInteger(data?.info?.playlistIndex)) {
-        const newIndex = data.info.playlistIndex;
-        const videos = playlistVideosRef.current;
-        
-        if (videos.length > 0 && newIndex >= 0 && newIndex < videos.length) {
-          const newVideo = videos[newIndex];
-          if (newVideo?.youtubeId && newVideo.youtubeId !== currentVideoIdRef.current) {
-            setVideo(newVideo);
-            setCurrentPlaylistIndex(newIndex);
-            setCurrentTime(0);
-            setInitialTime(null);
-            hasInitializedRef.current = false;
-            setShowDescription(false);
-
-            isPartSwitchRef.current = true;
-            navigate(routes.video(newVideo.youtubeId), { replace: true });
-          }
-        }
-      }
-    };
-    
-    window.addEventListener('message', handleYTMessage);
-
-    const initPlayer = async () => {
-      await loadYT();
-      if (cancelled) return;
-      
-      const iframeId = playlist?.youtubeId || video?.youtubeId;
-      const iframe = document.getElementById(`yt-player-${iframeId}`);
-      if (!iframe || cancelled) return;
-      
-      if (playerRef.current) return;
-      
-      player = new window.YT.Player(iframe, {
-        events: {
-          onReady: () => {
-            if (cancelled) return;
-            playerRef.current = player;
-            try {
-              if (pendingSeekRef.current !== null) {
-                player.seekTo?.(pendingSeekRef.current, true);
-                pendingSeekRef.current = null;
-              }
-              player.playVideo?.();
-            } catch {}
-            intervalId = setInterval(() => {
-              if (cancelled || !playerRef.current) return;
-              try {
-                setCurrentTime(playerRef.current.getCurrentTime?.() || 0);
-                setIsPlaying(playerRef.current.getPlayerState?.() === window.YT.PlayerState.PLAYING);
-              } catch {}
-            }, 200);
-          },
-          onStateChange: (ev) => {
-            if (cancelled) return;
-            
-            const state = ev.data;
-            setIsPlaying(state === window.YT.PlayerState.PLAYING);
-            
-            if (state === window.YT.PlayerState.BUFFERING) {
-              try {
-                const currentTime = playerRef.current?.getCurrentTime?.() || 0;
-                if (Math.abs(currentTime - lastProcessedTimeRef.current) >= 2) {
-                  setShowPartDropdown(false);
-                }
-                lastProcessedTimeRef.current = currentTime;
-              } catch {}
-            }
-          }
-        }
-      });
-    };
-    
-    const timeoutId = setTimeout(initPlayer, 100);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-      if (intervalId) clearInterval(intervalId);
-      window.removeEventListener('message', handleYTMessage);
-      playerRef.current = null;
-    };
-  // Query-string changes must not tear down the active YouTube player.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, playlist?.youtubeId]);
-
-  const updateUrlTime = useCallback((time) => {
-    setSearchParams((currentParams) => {
-      const nextParams = new URLSearchParams(currentParams);
-      nextParams.set('video', id);
-      nextParams.delete('playlist');
-      if (time > 0) {
-        nextParams.set('time', formatTimeForUrl(time));
-      } else {
-        nextParams.delete('time');
-      }
-      return nextParams;
-    }, { replace: true });
-  }, [id, setSearchParams]);
-
-  const savePlaybackState = useCallback((timeOverride = null) => {
-    if (!video) return;
-    
-    const time = Number.isFinite(timeOverride)
-      ? timeOverride
-      : playerRef.current?.getCurrentTime?.() || currentTimeRef.current;
-    const state = {
-      videoId: id,
-      time: Math.floor(time),
-      updatedAt: Date.now()
-    };
-    
-    localStorage.setItem('videoPlaybackState', JSON.stringify(state));
-  }, [video, id]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        savePlaybackState();
-      }
-    };
-    
-    const handleBeforeUnload = () => {
-      savePlaybackState();
-    };
-    
-    const intervalId = setInterval(() => {
-      savePlaybackState();
-    }, 30000);
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      savePlaybackState();
-      clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [savePlaybackState]);
-
-  useEffect(() => {
-    if (!video?.youtubeId || !playlist?.youtubeId) return;
-    localStorage.setItem('lastPlayedVideo', video.youtubeId);
-    localStorage.setItem('lastPlayedPlaylist', playlist.youtubeId);
-  }, [video?.youtubeId, playlist?.youtubeId]);
-
   const handleSeek = useCallback((time, updateUrl = true) => {
     const timeDiff = Math.abs(time - currentTimeRef.current);
     if (timeDiff >= 2) {
       setShowPartDropdown(false);
     }
 
-    if (playerRef.current?.seekTo) {
-      playerRef.current.seekTo(time, true);
-    } else {
-      pendingSeekRef.current = time;
-    }
+    seekTo(time);
 
     currentTimeRef.current = time;
     setCurrentTime(time);
     if (updateUrl) updateUrlTime(time);
     savePlaybackState(time);
-  }, [updateUrlTime, savePlaybackState]);
+  }, [seekTo, updateUrlTime, savePlaybackState]);
 
   const handlePartClick = (e, videoId, index) => {
     e.preventDefault();
     setShowPartDropdown(false);
     
-    if (playerRef.current?.playVideoAt && playlist?.videos?.length > 1) {
-      playerRef.current.playVideoAt(index);
-      
+    if (playlist?.videos?.length > 1 && playVideoAt(index)) {
       const newVideo = playlist.videos[index];
       if (newVideo) {
-        isPartSwitchRef.current = true;
         navigate(routes.video(videoId), { replace: true });
         
-        setVideo(newVideo);
-        setCurrentPlaylistIndex(index);
+        activatePlaylistVideo(newVideo);
         setCurrentTime(0);
-        setInitialTime(null);
-        hasInitializedRef.current = false;
+        resetInitialTime();
         setShowDescription(false);
       }
     } else {
@@ -455,6 +162,9 @@ export default function VideoPage({ videoId }) {
   const handleToggleDescription = () => {
     const newShowDescription = !showDescription;
     setShowDescription(newShowDescription);
+
+    descriptionOverflowCleanupRef.current?.();
+    descriptionOverflowCleanupRef.current = null;
     
     if (descriptionRef.current) {
       const descriptionEl = descriptionRef.current;
@@ -470,10 +180,24 @@ export default function VideoPage({ videoId }) {
         
         containerEl.style.overflow = contentHeight <= maxHeight ? 'hidden' : 'auto';
       } else {
-        containerEl.style.overflow = 'hidden';
+        const handleTransitionEnd = (event) => {
+          if (event.target !== containerEl || event.propertyName !== 'max-height') return;
+          containerEl.style.overflow = 'hidden';
+          descriptionOverflowCleanupRef.current?.();
+          descriptionOverflowCleanupRef.current = null;
+        };
+
+        containerEl.addEventListener('transitionend', handleTransitionEnd);
+        descriptionOverflowCleanupRef.current = () => {
+          containerEl.removeEventListener('transitionend', handleTransitionEnd);
+        };
       }
     }
   };
+
+  useEffect(() => () => {
+    descriptionOverflowCleanupRef.current?.();
+  }, []);
 
   const handleToggleHideInfo = useCallback((hide) => {
     setHideVideoInfo(hide);
@@ -529,153 +253,36 @@ export default function VideoPage({ videoId }) {
   if (loading) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
   if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>{loadError || 'Video not found'}</div>;
 
-  const hasDescription = video.description && !video.description.startsWith('Broadcasted live on Twitch');
-  const videos = playlist?.videos || [];
-  const currentIndex = videos.findIndex(v => v.youtubeId === video.youtubeId);
-  const partMatch = video.name?.match(/\(Part\s+(\d+(?:\.\d+)?)/);
-  const partNumber = partMatch ? partMatch[1] : (currentIndex + 1);
-
   return (
     <div className="video-page" data-theme={pageTheme}>
       <div className="video-content">
         <div className={`video-wrapper ${isWideChat ? 'wide-chat' : ''}`}>
-          {!hideVideoInfo && (
-            <div className="compact-header">
-              <Link to={routes.home} className="header-logo-link">
-                <img src={logo} alt="logo" className="header-logo" />
-                <span className="header-site-name">tsunami's twitch vods</span>
-              </Link>
-            </div>
-          )}
+          <VideoPlayer
+            hideVideoInfo={hideVideoInfo}
+            iframeRef={iframeRef}
+            initialTime={initialTime}
+            playlist={playlist}
+            video={video}
+          />
           
-          <div className="youtube-player-container">
-            <iframe
-              key={playlist?.youtubeId || video.youtubeId}
-              id={`yt-player-${playlist?.youtubeId || video.youtubeId}`}
-              title={video.name}
-              src={(() => {
-                const hasPlaylist = playlist?.youtubeId && videos.length > 1;
-                if (hasPlaylist) {
-                  return `https://www.youtube.com/embed?listType=playlist&list=${playlist.youtubeId}&index=${currentIndex + 1}&enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`;
-                }
-                return `https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&autoplay=1&origin=${encodeURIComponent(window.location.origin)}${initialTime ? `&start=${initialTime}` : ''}`;
-              })()}
-              allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            />
-          </div>
-          
-          <div 
-            ref={infoContainerRef}
-            className={`info-container ${showDescription ? 'expanded' : ''} ${hideVideoInfo ? 'hidden' : ''}`}
-            onTouchStart={handleInfoTouchStart}
-            onTouchEnd={handleInfoTouchEnd}
-          >
-            <div className="info-topbar">
-              <div className="video-metadata-container">
-                {playlist?.gameCover && (
-                  <Link 
-                    to={routes.playlist(playlist.youtubeId)}
-                    className="game-cover" 
-                    title="Go to Playlist"
-                  >
-                    <img src={playlist.gameCover} alt="Game Cover" className="game-cover-img" />
-                    <div className="game-cover-overlay">
-                      <svg className="back-arrow" viewBox="4 4 16 16">
-                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
-                      </svg>
-                    </div>
-                  </Link>
-                )}
-                <div className="video-text-container">
-                  <div className="video-header">
-                    <div className="video-title">{video.name}</div>
-                    <div className="video-date">{formatDate(video.publishedAt || video.createdAt)}</div>
-                  </div>
-                    {video.subTitle && <div className="video-subtitle" title="Twitch Stream Title">{video.subTitle}</div>}
-                </div>
-              </div>
-              
-              <div className="video-controls">
-                {videos.length > 1 && (
-                  <div className="part-selector-container" ref={partSelectorRef}>
-                    <label id="part-selector-label">Part</label>
-                    <button 
-                      className="part-selector-button"
-                      aria-haspopup="listbox"
-                      aria-expanded={showPartDropdown}
-                      aria-labelledby="part-selector-label"
-                      onClick={() => setShowPartDropdown(!showPartDropdown)}
-                    >
-                      {partNumber} ▾
-                    </button>
-                    {showPartDropdown && (
-                      <div 
-                        className="part-dropdown" 
-                        role="listbox" 
-                        aria-label="Select video part"
-                        tabIndex={0}
-                        ref={partDropdownRef}
-                      >
-                        {videos.map((v, idx) => (
-                          <Link 
-                            key={v.youtubeId}
-                            to={routes.video(v.youtubeId)}
-                            className={`part-dropdown-item ${v.youtubeId === video.youtubeId ? 'active' : ''}`}
-                            role="option"
-                            aria-selected={v.youtubeId === video.youtubeId}
-                            tabIndex={v.youtubeId === video.youtubeId ? 0 : -1}
-                            onClick={(e) => handlePartClick(e, v.youtubeId, idx)}
-                          >
-                            <div className="part-dropdown-thumb-container">
-                              <img 
-                                src={`https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg`}
-                                alt=""
-                                className="part-dropdown-thumb"
-                              />
-                              {v.duration && (
-                                <div className="part-duration-badge">{formatDuration(v.duration)}</div>
-                              )}
-                            </div>
-                            <div className="part-dropdown-text">
-                              <div className="part-video-title">{v.name}</div>
-                              <div className="part-video-date">{formatDate(v.publishedAt)}</div>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {hasDescription && (
-                  <div className="description-expander-container" onClick={handleToggleDescription}>
-                    <label className="description-button-label">
-                      {showDescription ? 'Hide' : 'Show'} Description
-                    </label>
-                    <div className="description-button-container">
-                      <button className="svg-button">
-                        <svg className="description-icon" viewBox="4 4 16 16">
-                          <path d="M14 17H4v2h10zm6-8H4v2h16zM4 15h16v-2H4zM4 5v2h16V5z" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {hasDescription && (
-              <div className={`video-description-container ${showDescription ? 'show' : ''}`}>
-                <div 
-                  ref={descriptionRef}
-                  className="video-description"
-                >
-                  {renderDescription(video.description, id, handleSeek)}
-                </div>
-              </div>
-            )}
-          </div>
+          <VideoInfo
+            descriptionRef={descriptionRef}
+            hideVideoInfo={hideVideoInfo}
+            infoContainerRef={infoContainerRef}
+            onInfoTouchEnd={handleInfoTouchEnd}
+            onInfoTouchStart={handleInfoTouchStart}
+            onPartClick={handlePartClick}
+            onSeek={handleSeek}
+            onToggleDescription={handleToggleDescription}
+            onTogglePartDropdown={() => setShowPartDropdown(!showPartDropdown)}
+            partDropdownRef={partDropdownRef}
+            partSelectorRef={partSelectorRef}
+            playlist={playlist}
+            showDescription={showDescription}
+            showPartDropdown={showPartDropdown}
+            video={video}
+            videoId={id}
+          />
         </div>
         
         <ChatContainer

@@ -403,7 +403,7 @@ a.part-dropdown-item {
   width: 38px;
 }
 
-.description-button-container:hover {
+.description-expander-container:hover .description-button-container {
   border-radius: 50%;
   background-color: rgba(83,83,95,0.48);
 }
