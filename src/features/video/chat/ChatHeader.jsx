@@ -237,17 +237,20 @@ function ChatHeader({
 
   return (
     <div className="chat-header">
-      {showFullControls && (
-        <div className="header-buttons">
-          <button
-            className="header-button"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-            onClick={onToggleFullscreen}
-          >
-            <FullscreenIcon isFullscreen={isFullscreen} />
-          </button>
-        </div>
-      )}
+      <div
+        className={`header-buttons ${showFullControls ? '' : 'header-buttons-hidden'}`}
+        aria-hidden={!showFullControls}
+      >
+        <button
+          className="header-button"
+          title={showFullControls ? (isFullscreen ? 'Exit Fullscreen' : 'Fullscreen') : undefined}
+          onClick={onToggleFullscreen}
+          disabled={!showFullControls}
+          tabIndex={showFullControls ? 0 : -1}
+        >
+          <FullscreenIcon isFullscreen={isFullscreen} />
+        </button>
+      </div>
 
       <span className="header-title">Archived Chat</span>
       <div className="header-buttons">

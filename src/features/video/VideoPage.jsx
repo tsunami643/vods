@@ -7,6 +7,7 @@ import {
 } from './videoUtils';
 import VideoInfo from './VideoInfo';
 import VideoPlayer from './VideoPlayer';
+import VideoPageSkeleton from './VideoPageSkeleton';
 import useVideoData from './useVideoData';
 import useVideoPageGestures from './useVideoPageGestures';
 import useVideoPlayback from './useVideoPlayback';
@@ -150,7 +151,8 @@ export default function VideoPage({ videoId }) {
       if (partDropdownRef.current) {
         const activeItem = partDropdownRef.current.querySelector('.part-dropdown-item.active');
         if (activeItem) {
-          activeItem.scrollIntoView({ block: 'nearest' });
+          const scrollTarget = activeItem.nextElementSibling || activeItem;
+          scrollTarget.scrollIntoView({ block: 'nearest' });
           dropdownScrolledRef.current = true;
         }
       }
@@ -218,7 +220,7 @@ export default function VideoPage({ videoId }) {
     localStorage.setItem('chatTheme', theme);
   }, []);
 
-  if (loading) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>Loading...</div>;
+  if (loading) return <VideoPageSkeleton theme={pageTheme} />;
   if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>{loadError || 'Video not found'}</div>;
 
   return (

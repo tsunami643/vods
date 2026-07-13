@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { isRequestCanceled, vodsApi } from "../../shared/vodsApi";
 
 export default function useCatalog({ isHomePage }) {
   const [games, setGames] = useState([]);
-  const [filteredGames, setFilteredGames] = useState([]);
   const [loading, setLoading] = useState(Boolean);
   const [error, setError] = useState(null);
   const [searchInput, setSearchInput] = useState("");
@@ -31,7 +30,6 @@ export default function useCatalog({ isHomePage }) {
       .then((catalog) => {
         if (!active) return;
         setGames(catalog);
-        setFilteredGames(catalog);
         setLoading(false);
       })
       .catch((requestError) => {
@@ -46,7 +44,7 @@ export default function useCatalog({ isHomePage }) {
     };
   }, []);
 
-  const filterGames = useCallback(() => {
+  const filteredGames = useMemo(() => {
     let results = games;
 
     if (searchInput) {
@@ -61,12 +59,8 @@ export default function useCatalog({ isHomePage }) {
       );
     }
 
-    setFilteredGames(results);
+    return results;
   }, [games, searchInput, tags]);
-
-  useEffect(() => {
-    if (!loading) filterGames();
-  }, [filterGames, loading]);
 
   const handleSearch = useCallback((value) => {
     setSearchInput(value);
@@ -93,6 +87,7 @@ export default function useCatalog({ isHomePage }) {
     clearSearch,
     error,
     filteredGames,
+    games,
     handleSearch,
     loading,
     removeTag,

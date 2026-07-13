@@ -5,18 +5,21 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import { memo, useMemo } from "react";
 
 import GameBox, { GameBoxSkeleton } from "./GameBox";
 
-export default function CatalogPage({
+function CatalogPage({
   addTag,
   clearSearch,
   error,
   games,
   loading,
+  visibleGames,
 }) {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const visibleGameSet = useMemo(() => new Set(visibleGames), [visibleGames]);
 
   return (
     <>
@@ -40,19 +43,26 @@ export default function CatalogPage({
           <Typography variant="h5" sx={{ p: 3 }}>
             {error}
           </Typography>
-        ) : games.length ? (
-          games.map((game, index) => (
-            <GameBox
-              key={index}
-              data={game}
-              addTag={addTag}
-              clearSearch={clearSearch}
-            />
-          ))
         ) : (
-          <Typography variant="h5" sx={{ p: 3 }}>
-            No Results
-          </Typography>
+          <>
+            {games.map((game) => (
+              <div
+                key={game.streamId || game.playlistId || game.gameName}
+                style={{ display: visibleGameSet.has(game) ? "contents" : "none" }}
+              >
+                <GameBox
+                  data={game}
+                  addTag={addTag}
+                  clearSearch={clearSearch}
+                />
+              </div>
+            ))}
+            {visibleGames.length === 0 && (
+              <Typography variant="h5" sx={{ p: 3 }}>
+                No Results
+              </Typography>
+            )}
+          </>
         )}
       </Box>
 
@@ -60,3 +70,5 @@ export default function CatalogPage({
     </>
   );
 }
+
+export default memo(CatalogPage);

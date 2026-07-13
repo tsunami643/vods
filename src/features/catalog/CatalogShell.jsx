@@ -7,7 +7,10 @@ import SearchBar from "./SearchBar";
 export default function CatalogShell({
   children,
   handleSearch,
+  onRandomVod,
   onRemoveTag,
+  randomVodDisabled,
+  randomVodStatus,
   searchKey,
   tags,
 }) {
@@ -26,8 +29,11 @@ export default function CatalogShell({
           <SearchBar
             key={searchKey}
             handleSearch={handleSearch}
+            onRandomVod={onRandomVod}
             tags={tags}
             onRemoveTag={onRemoveTag}
+            randomVodDisabled={randomVodDisabled}
+            randomVodStatus={randomVodStatus}
           />
         </Toolbar>
       </AppBar>

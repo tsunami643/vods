@@ -13,6 +13,7 @@ import {
 import { faYoutube } from "@fortawesome/free-brands-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Link as RouterLink } from "react-router-dom";
+import { memo } from "react";
 import { routes } from "../../routes";
 import "../../styles/GameBox.css";
 
@@ -182,4 +183,4 @@ const GameBox = ({ data, addTag, clearSearch }) => {
   );
 };
 
-export default GameBox;
+export default memo(GameBox);
