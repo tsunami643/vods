@@ -685,6 +685,22 @@ a.part-dropdown-item {
 }
 }
 
+/* MUI renders this tooltip in a portal outside of .video-page. */
+.game-cover-tooltip.MuiTooltip-tooltip {
+  padding: 0.333em 0.667em;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 0.333em;
+  box-shadow: 0 0.167em 0.667em rgba(0, 0, 0, 0.4);
+}
+
+.game-cover-tooltip-arrow.MuiTooltip-arrow {
+  color: rgba(0, 0, 0, 0.9);
+}
+
 @keyframes video-skeleton-shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }

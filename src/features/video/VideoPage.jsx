@@ -15,7 +15,11 @@ import useYouTubePlayer from './useYouTubePlayer';
 import ChatContainer from './chat/ChatContainer';
 import '../../styles/VideoPage.css';
 
-export default function VideoPage({ videoId }) {
+export default function VideoPage({
+  initialTimeOverride = null,
+  playbackGate = null,
+  videoId,
+}) {
   const id = videoId;
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(0);
@@ -51,6 +55,7 @@ export default function VideoPage({ videoId }) {
     updateUrlTime,
   } = useVideoPlayback({
     currentTime,
+    initialTimeOverride,
     playerTimeGetterRef,
     playlist,
     video,
@@ -75,11 +80,13 @@ export default function VideoPage({ videoId }) {
     enabled: !loading && Boolean(video),
     iframeRef,
     iframeId: playlist?.youtubeId || video?.youtubeId,
+    onFirstPlaying: playbackGate?.onFirstPlaying,
     onPlayingChange: setIsPlaying,
     onPlaylistVideoChange: handlePlaylistVideoChange,
     onSignificantBuffer: closePartDropdown,
     onTimeChange: setCurrentTime,
     playlistVideosRef,
+    shouldPlay: !playbackGate || playbackGate.released,
   });
   playerTimeGetterRef.current = getPlayerCurrentTime;
 
@@ -228,6 +235,7 @@ export default function VideoPage({ videoId }) {
       <div className="video-content">
         <div className={`video-wrapper ${isWideChat ? 'wide-chat' : ''}`}>
           <VideoPlayer
+            autoplay={!playbackGate}
             hideVideoInfo={hideVideoInfo}
             iframeRef={iframeRef}
             initialTime={initialTime}

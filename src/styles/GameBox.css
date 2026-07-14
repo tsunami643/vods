@@ -16,6 +16,17 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
+.game-box-static.MuiCard-root {
+  content-visibility: visible;
+  margin: 0;
+  pointer-events: none;
+}
+
+.game-box-static.MuiCard-root:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .game-box .game-box-media {
   max-width: 120px;
   background-color: rgba(255, 255, 255, 0.16);

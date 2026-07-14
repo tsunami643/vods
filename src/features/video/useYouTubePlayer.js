@@ -40,18 +40,22 @@ export default function useYouTubePlayer({
   enabled,
   iframeRef,
   iframeId,
+  onFirstPlaying,
   onPlayingChange,
   onPlaylistVideoChange,
   onSignificantBuffer,
   onTimeChange,
   playlistVideosRef,
+  shouldPlay = true,
 }) {
   const playerRef = useRef(null);
   const pendingSeekRef = useRef(null);
   const lastProcessedTimeRef = useRef(0);
   const currentVideoIdRef = useRef(currentVideoId);
   const iframeIdRef = useRef(iframeId);
+  const shouldPlayRef = useRef(shouldPlay);
   const callbacksRef = useRef({
+    onFirstPlaying,
     onPlayingChange,
     onPlaylistVideoChange,
     onSignificantBuffer,
@@ -67,13 +71,23 @@ export default function useYouTubePlayer({
   }, [iframeId]);
 
   useEffect(() => {
+    shouldPlayRef.current = shouldPlay;
+    if (!shouldPlay) return;
+
+    try {
+      playerRef.current?.playVideo?.();
+    } catch {}
+  }, [shouldPlay]);
+
+  useEffect(() => {
     callbacksRef.current = {
+      onFirstPlaying,
       onPlayingChange,
       onPlaylistVideoChange,
       onSignificantBuffer,
       onTimeChange,
     };
-  }, [onPlayingChange, onPlaylistVideoChange, onSignificantBuffer, onTimeChange]);
+  }, [onFirstPlaying, onPlayingChange, onPlaylistVideoChange, onSignificantBuffer, onTimeChange]);
 
   useEffect(() => {
     if (!enabled || !iframeId || !iframeRef.current) return;
@@ -81,7 +95,16 @@ export default function useYouTubePlayer({
     let cancelled = false;
     let intervalId = null;
     let player = null;
+    let hasReportedPlaying = false;
     const iframe = iframeRef.current;
+
+    const reportPlayingState = (playing) => {
+      callbacksRef.current.onPlayingChange(playing);
+      if (playing && !hasReportedPlaying) {
+        hasReportedPlaying = true;
+        callbacksRef.current.onFirstPlaying?.();
+      }
+    };
 
     const handleYouTubeMessage = (event) => {
       if (event.origin !== 'https://www.youtube.com') return;
@@ -133,7 +156,7 @@ export default function useYouTubePlayer({
                 }
                 pendingSeekRef.current = null;
               }
-              player.playVideo?.();
+              if (shouldPlayRef.current) player.playVideo?.();
             } catch {}
 
             intervalId = setInterval(() => {
@@ -142,7 +165,7 @@ export default function useYouTubePlayer({
                 callbacksRef.current.onTimeChange(
                   playerRef.current.getCurrentTime?.() || 0
                 );
-                callbacksRef.current.onPlayingChange(
+                reportPlayingState(
                   playerRef.current.getPlayerState?.() === window.YT.PlayerState.PLAYING
                 );
               } catch {}
@@ -152,9 +175,7 @@ export default function useYouTubePlayer({
             if (cancelled) return;
 
             const state = event.data;
-            callbacksRef.current.onPlayingChange(
-              state === window.YT.PlayerState.PLAYING
-            );
+            reportPlayingState(state === window.YT.PlayerState.PLAYING);
 
             if (state === window.YT.PlayerState.BUFFERING) {
               try {

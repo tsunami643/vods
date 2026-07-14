@@ -1,0 +1,172 @@
+.random-vod-facade-active,
+.random-vod-facade-active body {
+  overflow: hidden;
+}
+
+.random-vod-facade {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 24px;
+  color: #dcdcff;
+  background:
+    radial-gradient(circle at center, rgba(124, 140, 255, 0.16), transparent 48%),
+    #242a43;
+  opacity: 1;
+  transition: opacity var(--random-vod-exit-duration) ease;
+}
+
+.random-vod-facade.exiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.random-vod-facade-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 620px);
+  gap: 24px;
+}
+
+.random-vod-facade-status {
+  min-height: 1.5em;
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+.random-vod-card-frame {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  animation: random-vod-card-shuffle 120ms ease-out;
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.45));
+}
+
+.random-vod-card-frame.settled {
+  animation: random-vod-card-settle 500ms cubic-bezier(0.18, 0.8, 0.24, 1);
+}
+
+.random-vod-loading-bar.MuiLinearProgress-root {
+  width: min(70%, 320px);
+  height: 5px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: rgba(220, 220, 255, 0.2);
+}
+
+.random-vod-loading-bar .MuiLinearProgress-bar {
+  border-radius: 999px;
+  background-color: #dcdcff;
+}
+
+.random-vod-reroll.MuiButton-root {
+  --reroll-bg: #242a43;
+  --reroll-hover-bg: #3a4160;
+  --reroll-border: rgba(220, 220, 255, 0.5);
+  --reroll-text: #dcdcff;
+  position: fixed;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: 50%;
+  z-index: 1500;
+  max-width: calc(100vw - 24px);
+  padding: 8px 18px;
+  color: var(--reroll-text);
+  font-weight: 700;
+  text-transform: none;
+  white-space: nowrap;
+  background-color: var(--reroll-bg);
+  border: 1px solid var(--reroll-border);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+  animation: random-vod-reroll-enter 280ms ease-out;
+  transition:
+    opacity 250ms ease,
+    transform 250ms ease,
+    background-color 150ms ease;
+}
+
+.random-vod-reroll.MuiButton-root[data-theme="twitch"] {
+  --reroll-bg: #18181b;
+  --reroll-hover-bg: #26262c;
+  --reroll-border: rgba(255, 255, 255, 0.1);
+  --reroll-text: #efeff1;
+}
+
+.random-vod-reroll.MuiButton-root[data-theme="oled"] {
+  --reroll-bg: #0a0a0a;
+  --reroll-hover-bg: #1a1a1a;
+  --reroll-border: rgba(255, 255, 255, 0.15);
+  --reroll-text: #fff;
+}
+
+.random-vod-reroll.MuiButton-root:hover {
+  background-color: var(--reroll-hover-bg);
+}
+
+.random-vod-reroll.MuiButton-root.exiting {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 10px);
+}
+
+@keyframes random-vod-card-shuffle {
+  from {
+    opacity: 0.35;
+    transform: translateY(-12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes random-vod-card-settle {
+  0% {
+    opacity: 0.5;
+    transform: translateY(-18px) scale(0.97);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(3px) scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes random-vod-reroll-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 479.95px) {
+  .random-vod-facade {
+    padding: 16px 8px;
+  }
+
+  .random-vod-facade-content {
+    gap: 18px;
+  }
+
+  .random-vod-card-frame .game-box-static.MuiCard-root {
+    width: 100%;
+    min-width: 0;
+  }
+}

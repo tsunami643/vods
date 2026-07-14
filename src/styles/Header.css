@@ -1,0 +1,229 @@
+.catalog-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.catalog-shell.viewport-constrained {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.catalog-header-app-bar.MuiAppBar-root {
+  background-color: #242a43;
+  background-image: none;
+  box-shadow: 0 2px 40px 0 rgb(0 0 0 / 40%);
+}
+
+.catalog-header-toolbar.MuiToolbar-root {
+  justify-content: space-between;
+}
+
+.catalog-shell-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.catalog-shell.viewport-constrained .catalog-header-app-bar,
+.catalog-shell.viewport-constrained footer {
+  flex-shrink: 0;
+}
+
+.catalog-shell.viewport-constrained footer {
+  position: relative;
+  z-index: 1;
+  background: #242a43;
+  border-top: 1px solid rgba(220, 220, 255, 0.18);
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 25%);
+}
+
+.catalog-shell.viewport-constrained .catalog-shell-content {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.catalog-brand.MuiLink-root {
+  display: flex;
+  align-items: center;
+  transition: text-shadow 150ms linear;
+}
+
+.catalog-brand.MuiLink-root:hover {
+  text-shadow: 0 0 10px rgba(220, 220, 255, 0.9);
+}
+
+.catalog-brand-logo {
+  height: 50px;
+  border-radius: 9000px;
+  transition: all 150ms linear;
+}
+
+.catalog-brand:hover .catalog-brand-logo {
+  filter: brightness(1.25);
+  box-shadow: 0 0 5px rgba(220, 220, 255, 0.9);
+}
+
+.catalog-brand-copy {
+  display: none;
+  margin-left: 16px;
+}
+
+.catalog-brand-title.MuiTypography-root {
+  font-size: 25px;
+  font-weight: 700;
+  transition: text-shadow 120ms ease;
+}
+
+.catalog-brand-subtitle.MuiTypography-root {
+  color: #dcdcff;
+  font-size: 12px;
+  font-weight: 500;
+  transition: text-shadow 120ms ease;
+}
+
+.catalog-header-controls {
+  display: flex;
+  flex: 0 1 750px;
+  align-items: center;
+  min-width: 0;
+  margin: 16px 0 16px 16px;
+  gap: 4px;
+}
+
+.catalog-search-form.MuiFormControl-root {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.catalog-search-form .catalog-search-label.MuiInputLabel-outlined {
+  margin-left: -8px;
+  color: rgba(220, 220, 255, 0.7);
+  font-size: 1rem;
+  line-height: 1.4375em;
+}
+
+.catalog-search-form .catalog-search-label.MuiInputLabel-outlined.Mui-focused {
+  color: #dcdcff;
+}
+
+.catalog-search-form .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #dcdcff;
+}
+
+.catalog-search-form:hover .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.catalog-search-input.MuiOutlinedInput-root {
+  margin-left: -8px;
+  padding-right: 24px;
+  border-radius: 60px;
+}
+
+.catalog-search-tags {
+  display: flex;
+  margin-right: 8px;
+  gap: 8px;
+}
+
+.catalog-search-icon {
+  color: #c8d4ff;
+}
+
+.random-vod-header-button.MuiButton-root {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  width: 160px;
+  min-width: 160px;
+  height: 42px;
+  padding-inline: 12px;
+  color: #dcdcff;
+  white-space: nowrap;
+  border-color: rgba(220, 220, 255, 0.5);
+  border-radius: 60px;
+}
+
+.random-vod-header-button.MuiButton-root:hover {
+  background-color: rgba(220, 220, 255, 0.08);
+  border-color: #dcdcff;
+}
+
+.random-vod-header-button.MuiButton-root.finding {
+  animation: random-vod-finding 900ms ease-in-out infinite;
+}
+
+.random-vod-header-button.MuiButton-root.finding.Mui-disabled {
+  color: #dcdcff;
+  border-color: rgba(220, 220, 255, 0.65);
+}
+
+.random-vod-header-button .random-vod-icon-container {
+  display: flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.random-vod-header-button .random-vod-label {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+
+.random-vod-header-button.finding .random-vod-icon,
+.random-vod-header-button:hover .random-vod-icon {
+  animation: random-vod-shuffle 500ms ease-in-out infinite;
+}
+
+@keyframes random-vod-shuffle {
+  0%,
+  100% {
+    transform: translateX(-2px) rotate(-8deg);
+  }
+  50% {
+    transform: translateX(2px) rotate(8deg) scale(1.12);
+  }
+}
+
+@keyframes random-vod-finding {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(220, 220, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(220, 220, 255, 0.55);
+  }
+}
+
+@media (min-width: 681px) {
+  .catalog-brand-copy {
+    display: block;
+  }
+
+  .catalog-header-controls {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 479.95px) {
+  .catalog-search-form .catalog-search-label.MuiInputLabel-outlined {
+    margin-left: 0;
+    font-size: 14px;
+    line-height: 1.6em;
+  }
+
+  .random-vod-header-button.MuiButton-root {
+    justify-content: center;
+    width: 42px;
+    min-width: 42px;
+    padding-inline: 0;
+  }
+
+  .random-vod-header-button .random-vod-label {
+    display: none;
+  }
+}

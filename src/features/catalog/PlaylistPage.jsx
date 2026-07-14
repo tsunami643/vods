@@ -19,6 +19,19 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatTotalDuration(videos = []) {
+  const totalSeconds = videos.reduce(
+    (total, video) => total + (Number(video.duration) || 0),
+    0
+  );
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const hourLabel = `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  const minuteLabel = `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+
+  return `${hourLabel}, ${minuteLabel}`;
+}
+
 export default function PlaylistPage({ playlistId }) {
   const id = playlistId;
   const [playlist, setPlaylist] = useState(null);
@@ -74,7 +87,14 @@ export default function PlaylistPage({ playlistId }) {
         )}
         <div className="playlist-info">
           <h1 className="playlist-title">{playlist.name}</h1>
-          <p className="playlist-meta">{playlist.videos?.length || 0} videos</p>
+          <div className="playlist-stats">
+            <p className="playlist-meta playlist-video-count">
+              {playlist.videos?.length || 0} videos
+            </p>
+            <p className="playlist-meta playlist-duration">
+              {formatTotalDuration(playlist.videos)}
+            </p>
+          </div>
         </div>
       </div>
       

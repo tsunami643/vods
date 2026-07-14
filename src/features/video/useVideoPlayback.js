@@ -4,6 +4,7 @@ import { formatTimeForUrl, parseTimeToSeconds } from './videoUtils';
 
 export default function useVideoPlayback({
   currentTime,
+  initialTimeOverride = null,
   playerTimeGetterRef,
   playlist,
   video,
@@ -29,6 +30,11 @@ export default function useVideoPlayback({
     hasInitializedRef.current = true;
     setInitialTime(null);
 
+    if (Number.isFinite(initialTimeOverride) && initialTimeOverride >= 0) {
+      setInitialTime(initialTimeOverride);
+      return;
+    }
+
     const timeParam = searchParams.get('time');
     if (timeParam) {
       const seconds = parseTimeToSeconds(timeParam);
@@ -47,7 +53,7 @@ export default function useVideoPlayback({
         }
       }
     } catch {}
-  }, [searchParams, videoId]);
+  }, [initialTimeOverride, searchParams, videoId]);
 
   const resetInitialTime = useCallback(() => {
     setInitialTime(null);

@@ -41,7 +41,7 @@ export const GameBoxSkeleton = () => {
   );
 };
 
-const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
+const StreamInfo = ({ dateCompleted, playlistId, firstVideo, interactive, streams }) => {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down("mobileCard"));
 
@@ -56,6 +56,43 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
     }
     return firstVideo;
   };
+
+  const youtubeContent = (
+    <Box className="game-box-youtube">
+      <FontAwesomeIcon icon={faYoutube} />
+    </Box>
+  );
+  const streamContent = (
+    <Box
+      className="game-box-streams"
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+      style={{ cursor: interactive ? "pointer" : "default" }}
+    >
+      <Typography
+        sx={{
+          fontSize: mobile ? 11 : 13,
+          fontWeight: 500,
+          color: theme.palette.text.primary,
+        }}
+      >
+        STREAMS
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: mobile ? 14 : 19,
+          fontWeight: 700,
+          color: theme.palette.text.primary,
+        }}
+      >
+        {streams}
+      </Typography>
+    </Box>
+  );
 
   return (
     <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", width: "100%" }}>
@@ -87,68 +124,50 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, streams }) => {
           {cleanDate}
         </Typography>
       </Box>
-      <RouterLink
-        to={routes.video(getLastPlayedVideo())}
-        onClick={(e) => e.stopPropagation()}
-        style={{ textDecoration: 'none' }}
-      >
-        <Box className="game-box-youtube">
-          <FontAwesomeIcon icon={faYoutube} />
-        </Box>
-      </RouterLink>
-      <RouterLink
-        to={routes.playlist(playlistId)}
-        onClick={(e) => e.stopPropagation()}
-        style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', flexBasis: '33.3333%' }}
-      >
-        <Box
-          className="game-box-streams"
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-          style={{cursor:'pointer'}}
+      {interactive ? (
+        <RouterLink
+          to={routes.video(getLastPlayedVideo())}
+          onClick={(e) => e.stopPropagation()}
+          style={{ textDecoration: "none" }}
         >
-          <Typography
-            sx={{
-              fontSize: mobile ? 11 : 13,
-              fontWeight: 500,
-              color: theme.palette.text.primary,
-            }}
-          >
-            STREAMS
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: mobile ? 14 : 19,
-              fontWeight: 700,
-              color: theme.palette.text.primary,
-            }}
-          >
-            {streams}
-          </Typography>
+          {youtubeContent}
+        </RouterLink>
+      ) : (
+        <Box component="span" sx={{ display: "flex" }}>
+          {youtubeContent}
         </Box>
-      </RouterLink>
+      )}
+      {interactive ? (
+        <RouterLink
+          to={routes.playlist(playlistId)}
+          onClick={(e) => e.stopPropagation()}
+          style={{ textDecoration: "none", display: "flex", justifyContent: "center", flexBasis: "33.3333%" }}
+        >
+          {streamContent}
+        </RouterLink>
+      ) : (
+        <Box sx={{ display: "flex", justifyContent: "center", flexBasis: "33.3333%" }}>
+          {streamContent}
+        </Box>
+      )}
     </Box>
   );
 };
 
-const GameBox = ({ data, addTag, clearSearch }) => {
+const GameBox = ({ data, addTag, clearSearch, interactive = true }) => {
   const handleTagClick = (tag) => (e) => {
     e.stopPropagation();
     if (clearSearch) clearSearch();
-    addTag(tag);
+    addTag?.(tag);
   };
 
   return (
-    <Card className="game-box">
+    <Card className={`game-box${interactive ? "" : " game-box-static"}`}>
       <CardMedia
         component="img"
         image={data.gameCover}
         alt={`${data.gameName} Cover`}
-        loading="lazy"
+        loading={interactive ? "lazy" : "eager"}
         decoding="async"
         className="game-box-media"
       />
@@ -159,6 +178,7 @@ const GameBox = ({ data, addTag, clearSearch }) => {
             dateCompleted={data.dateCompleted}
             playlistId={data.playlistId}
             firstVideo={data.firstVideo}
+            interactive={interactive}
             streams={data.streams}
           />
         </Box>
@@ -173,7 +193,12 @@ const GameBox = ({ data, addTag, clearSearch }) => {
           >
             {data.tags.map((tag, key) => {
               return (
-                <Chip label={tag} onClick={handleTagClick(tag)} size="small" key={key} />
+                <Chip
+                  label={tag}
+                  onClick={interactive ? handleTagClick(tag) : undefined}
+                  size="small"
+                  key={key}
+                />
               );
             })}
           </Stack>

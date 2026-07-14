@@ -1,3 +1,5 @@
+import Fade from '@mui/material/Fade';
+import Tooltip from '@mui/material/Tooltip';
 import { Link } from 'react-router-dom';
 import { routes, videoHref } from '../../routes';
 import {
@@ -84,18 +86,30 @@ export default function VideoInfo({
       <div className="info-topbar">
         <div className="video-metadata-container">
           {playlist?.gameCover && (
-            <Link
-              to={routes.playlist(playlist.youtubeId)}
-              className="game-cover"
+            <Tooltip
               title="Go to Playlist"
+              placement="top"
+              arrow
+              disableInteractive
+              classes={{
+                tooltip: 'game-cover-tooltip',
+                arrow: 'game-cover-tooltip-arrow',
+              }}
+              slots={{ transition: Fade }}
+              slotProps={{ transition: { timeout: 150 } }}
             >
-              <img src={playlist.gameCover} alt="Game Cover" className="game-cover-img" />
-              <div className="game-cover-overlay">
-                <svg className="back-arrow" viewBox="4 4 16 16">
-                  <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
-                </svg>
-              </div>
-            </Link>
+              <Link
+                to={routes.playlist(playlist.youtubeId)}
+                className="game-cover"
+              >
+                <img src={playlist.gameCover} alt="Game Cover" className="game-cover-img" />
+                <div className="game-cover-overlay">
+                  <svg className="back-arrow" viewBox="4 4 16 16">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+                  </svg>
+                </div>
+              </Link>
+            </Tooltip>
           )}
           <div className="video-text-container">
             <div className="video-header">

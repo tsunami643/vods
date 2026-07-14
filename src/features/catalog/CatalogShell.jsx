@@ -3,6 +3,7 @@ import { AppBar, Box, Toolbar } from "@mui/material";
 import Footer from "../../shared/Footer";
 import Header from "../../shared/Header";
 import SearchBar from "./SearchBar";
+import "../../styles/Header.css";
 
 export default function CatalogShell({
   children,
@@ -13,18 +14,12 @@ export default function CatalogShell({
   randomVodStatus,
   searchKey,
   tags,
+  viewportConstrained = false,
 }) {
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <AppBar
-        position="sticky"
-        sx={{
-          bgcolor: "#242A43",
-          backgroundImage: "none",
-          boxShadow: "0px 2px 40px 0px rgb(0 0 0 / 40%)",
-        }}
-      >
-        <Toolbar sx={{ justifyContent: "space-between" }}>
+    <Box className={`catalog-shell${viewportConstrained ? " viewport-constrained" : ""}`}>
+      <AppBar className="catalog-header-app-bar" position="sticky">
+        <Toolbar className="catalog-header-toolbar">
           <Header />
           <SearchBar
             key={searchKey}
@@ -38,7 +33,7 @@ export default function CatalogShell({
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <Box className="catalog-shell-content">
         {children}
       </Box>
 
