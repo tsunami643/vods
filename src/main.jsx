@@ -13,6 +13,7 @@ const theme = createTheme({
     },
     text: {
       primary: "#DCDCFF",
+      secondary: "#B2B2DF"
     },
   },
   breakpoints: {

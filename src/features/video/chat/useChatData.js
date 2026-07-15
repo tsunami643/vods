@@ -272,17 +272,19 @@ export default function useChatData(videoId) {
     return Array.from(messagesById.values());
   }, [loadSingleRange]);
 
+  const dataMatchesVideo = mountedVideoIdRef.current === videoId;
+
   return {
-    allMessages,
-    badgeList,
-    emoteList,
-    error,
+    allMessages: dataMatchesVideo ? allMessages : [],
+    badgeList: dataMatchesVideo ? badgeList : [],
+    emoteList: dataMatchesVideo ? emoteList : [],
+    error: dataMatchesVideo ? error : null,
     isRangeLoaded,
     loadTimeRange,
-    loading,
+    loading: !dataMatchesVideo || loading,
     messageMapRef,
-    metadata,
+    metadata: dataMatchesVideo ? metadata : null,
     mountedVideoIdRef,
-    userList,
+    userList: dataMatchesVideo ? userList : [],
   };
 }

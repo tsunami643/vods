@@ -1,5 +1,15 @@
-import { Link, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { faInstagram, faTwitch, faXTwitter } from "@fortawesome/free-brands-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Box, Link, Typography, useMediaQuery, useTheme } from "@mui/material";
 import React from "react";
+
+const socialLinkStyles = {
+  alignItems: "center",
+  display: "inline-flex",
+  fontSize: "1.35em",
+  transition: "opacity 0.2s",
+  "&:hover": { opacity: 0.75 },
+};
 
 const Footer = () => {
   const theme = useTheme();
@@ -20,35 +30,38 @@ const Footer = () => {
         </Link>{" "}
         to view all the playlists.
         <br />
-        <Link
-          href="https://twitch.tv/tsunami643"
-          target="_blank"
-          rel="noopener"
-          underline="none"
-          sx={{ fontWeight: 700 }}
-        >
-          Twitch
-        </Link>{" "}
-        |{" "}
-        <Link
-          href="https://twitter.com/tsunami643"
-          target="_blank"
-          rel="noopener"
-          underline="none"
-          sx={{ fontWeight: 700 }}
-        >
-          Twitter
-        </Link>{" "}
-        |{" "}
-        <Link
-          href="https://instagram.com/tsunami643"
-          target="_blank"
-          rel="noopener"
-          underline="none"
-          sx={{ fontWeight: 700 }}
-        >
-          Instagram
-        </Link>
+        <Box component="span" sx={{ display: "inline-flex", gap: 5, mt: 3 }}>
+          <Link
+            href="https://x.com/tsunami643"
+            target="_blank"
+            rel="noopener"
+            underline="none"
+            aria-label="X"
+            sx={socialLinkStyles}
+          >
+            <FontAwesomeIcon icon={faXTwitter} />
+          </Link>
+          <Link
+            href="https://twitch.tv/tsunami643"
+            target="_blank"
+            rel="noopener"
+            underline="none"
+            aria-label="Twitch"
+            sx={socialLinkStyles}
+          >
+            <FontAwesomeIcon icon={faTwitch} />
+          </Link>
+          <Link
+            href="https://instagram.com/tsunami643"
+            target="_blank"
+            rel="noopener"
+            underline="none"
+            aria-label="Instagram"
+            sx={socialLinkStyles}
+          >
+            <FontAwesomeIcon icon={faInstagram} />
+          </Link>
+        </Box>
       </Typography>
     </footer>
   );

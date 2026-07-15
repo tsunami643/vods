@@ -1,19 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
-/* Theme: Blue (default) */
-.chat-container {
-  --chat-bg: #1a1d2e;
-  --chat-header-bg: #242A43;
-  --chat-border: rgba(255, 255, 255, 0.1);
-  --chat-accent: #7c8cff;
-  --chat-text: #fff;
-  --chat-text-muted: rgba(255, 255, 255, 0.5);
-  --chat-settings-bg: #2a2f45;
-  --chat-toggle-bg: #3a4060;
-  --chat-toggle-active: #7c8cff;
-}
-
-/* Theme: Twitch */
+/* Theme: Twitch (default) */
+.chat-container,
 .chat-container[data-theme="twitch"] {
   --chat-bg: #18181b;
   --chat-header-bg: #18181b;
@@ -21,9 +9,24 @@
   --chat-accent: #3ea6ff;
   --chat-text: #efeff1;
   --chat-text-muted: rgba(255, 255, 255, 0.5);
+  --chat-message-hover: #3d3d40;
   --chat-settings-bg: #18181b;
   --chat-toggle-bg: #3a3a44;
   --chat-toggle-active: #8956fb;
+}
+
+/* Theme: Blue */
+.chat-container[data-theme="blue"] {
+  --chat-bg: #1a1d2e;
+  --chat-header-bg: #242A43;
+  --chat-border: rgba(255, 255, 255, 0.1);
+  --chat-accent: #7c8cff;
+  --chat-text: #fff;
+  --chat-text-muted: rgba(255, 255, 255, 0.5);
+  --chat-message-hover: #2a2f45;
+  --chat-settings-bg: #2a2f45;
+  --chat-toggle-bg: #3a4060;
+  --chat-toggle-active: #7c8cff;
 }
 
 /* Theme: OLED */
@@ -34,6 +37,7 @@
   --chat-accent: #00d9ff;
   --chat-text: #ffffff;
   --chat-text-muted: rgba(255, 255, 255, 0.6);
+  --chat-message-hover: #1a1a1a;
   --chat-settings-bg: #111111;
   --chat-toggle-bg: #222222;
   --chat-toggle-active: #00d9ff;
@@ -136,8 +140,31 @@
   font-size: 14px;
 }
 
-.header-button:hover {
-  background-color: rgba(83,83,95,0.48);
+.settings-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+.settings-icon-spinning {
+  animation: chat-settings-spin 0.3s ease-in-out;
+}
+
+@keyframes chat-settings-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(180deg);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .header-button:hover {
+    background-color: rgba(83,83,95,0.48);
+  }
 }
 
 .settings-panel {
@@ -155,18 +182,25 @@
   user-select: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   transform-origin: top right;
-  animation: settings-panel-open 0.18s ease-out;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-0.5em);
+  transition:
+    opacity 0.18s ease-in,
+    transform 0.18s ease-in,
+    visibility 0s linear 0.18s;
 }
 
-@keyframes settings-panel-open {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5em);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.settings-panel-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out,
+    visibility 0s;
 }
 
 .settings-row {
@@ -319,12 +353,20 @@
 
 .chat-message {
   padding: 0.25em;
+  border-radius: 0.4em;
   word-break: break-word;
   width: 100%;
   color: #efeff1;
   display: flex;
   align-items: flex-start;
   flex-wrap: nowrap;
+  transition: background-color 100ms ease;
+}
+
+@media (hover: hover) {
+  .chat-message:hover {
+    background-color: var(--chat-message-hover);
+  }
 }
 
 .chat-timestamp {
@@ -369,7 +411,7 @@
 .badge {
   display: inline-block;
   position: relative;
-  margin-inline-end: 0.3em;
+  margin-inline-end: 0.2em;
 }
 
 .badge-img {

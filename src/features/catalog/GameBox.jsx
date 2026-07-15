@@ -77,7 +77,7 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, interactive, stream
         sx={{
           fontSize: mobile ? 11 : 13,
           fontWeight: 500,
-          color: theme.palette.text.primary,
+          color: "text.secondary",
         }}
       >
         STREAMS
@@ -109,7 +109,7 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, interactive, stream
           sx={{
             fontSize: mobile ? 9 : 11,
             fontWeight: 500,
-            color: theme.palette.text.primary,
+            color: "text.secondary",
           }}
         >
           COMPLETED

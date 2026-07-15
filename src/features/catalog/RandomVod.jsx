@@ -225,7 +225,7 @@ export function RandomVodRerollButton({ onReroll }) {
   const [exiting, setExiting] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [theme] = useState(() => localStorage.getItem("chatTheme") || "blue");
+  const [theme] = useState(() => localStorage.getItem("chatTheme") || "twitch");
 
   useEffect(() => {
     if (hovered) return undefined;

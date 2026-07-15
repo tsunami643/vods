@@ -27,7 +27,7 @@ function ChatMessageList({
   userList,
   videoId,
 }) {
-  const { showBadges, showBorders, showTimestamps } = preferences;
+  const { showBadges, showTimestamps } = preferences;
 
   return (
     <>
@@ -56,7 +56,6 @@ function ChatMessageList({
             badgeList={badgeList}
             showTimestamps={showTimestamps}
             showBadges={showBadges}
-            showBorder={showBorders}
             onSeek={onSeek}
             videoId={videoId}
             chatDelay={chatDelay}

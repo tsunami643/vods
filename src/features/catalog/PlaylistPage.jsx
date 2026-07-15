@@ -4,10 +4,16 @@ import { routes } from '../../routes';
 import { getErrorStatus, isRequestCanceled, vodsApi } from '../../shared/vodsApi';
 import '../../styles/PlaylistPage.css';
 
+const PLAYLIST_SKELETON_VIDEO_COUNT = 4;
+
 function formatDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 function formatDuration(seconds) {
@@ -30,6 +36,43 @@ function formatTotalDuration(videos = []) {
   const minuteLabel = `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
 
   return `${hourLabel}, ${minuteLabel}`;
+}
+
+function PlaylistPageSkeleton() {
+  return (
+    <div
+      className="playlist-page playlist-page-skeleton"
+      role="status"
+      aria-label="Loading playlist"
+    >
+      <div className="playlist-header">
+        <span className="playlist-skeleton-block playlist-skeleton-cover" />
+        <div className="playlist-info playlist-skeleton-info">
+          <span className="playlist-skeleton-block playlist-skeleton-title" />
+          <div className="playlist-stats">
+            <span className="playlist-skeleton-block playlist-skeleton-duration" />
+            <span className="playlist-skeleton-block playlist-skeleton-count" />
+          </div>
+        </div>
+      </div>
+
+      <div className="playlist-videos" aria-hidden="true">
+        {Array.from({ length: PLAYLIST_SKELETON_VIDEO_COUNT }, (_, index) => (
+          <div className="playlist-video-skeleton" key={index}>
+            <span className="playlist-skeleton-block playlist-skeleton-index" />
+            <span className="playlist-skeleton-block playlist-skeleton-thumbnail" />
+            <div className="playlist-skeleton-video-details">
+              <div className="playlist-skeleton-video-heading">
+                <span className="playlist-skeleton-block playlist-skeleton-video-title" />
+                <span className="playlist-skeleton-block playlist-skeleton-video-date" />
+              </div>
+              <span className="playlist-skeleton-block playlist-skeleton-video-subtitle" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function PlaylistPage({ playlistId }) {
@@ -64,11 +107,7 @@ export default function PlaylistPage({ playlistId }) {
   }, [id]);
 
   if (loading) {
-    return (
-      <div className="playlist-page">
-        <div className="playlist-loading">Loading...</div>
-      </div>
-    );
+    return <PlaylistPageSkeleton />;
   }
 
   if (error || !playlist) {
@@ -79,6 +118,13 @@ export default function PlaylistPage({ playlistId }) {
     );
   }
 
+  const firstVideo = playlist.videos?.[0];
+  const youtubePlaylistUrl = firstVideo?.youtubeId
+    ? `https://www.youtube.com/watch?v=${encodeURIComponent(firstVideo.youtubeId)}${
+      playlist.youtubeId ? `&list=${encodeURIComponent(playlist.youtubeId)}` : ''
+    }`
+    : null;
+
   return (
     <div className="playlist-page">
       <div className="playlist-header">
@@ -88,13 +134,27 @@ export default function PlaylistPage({ playlistId }) {
         <div className="playlist-info">
           <h1 className="playlist-title">{playlist.name}</h1>
           <div className="playlist-stats">
-            <p className="playlist-meta playlist-video-count">
-              {playlist.videos?.length || 0} videos
-            </p>
             <p className="playlist-meta playlist-duration">
               {formatTotalDuration(playlist.videos)}
             </p>
+            <p className="playlist-meta playlist-video-count">
+              {playlist.videos?.length || 0} videos
+            </p>
           </div>
+          {youtubePlaylistUrl && (
+            <a
+              className="playlist-youtube-link"
+              href={youtubePlaylistUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg className="playlist-youtube-logo" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="1" y="4.5" width="22" height="15" rx="4" />
+                <path d="M10 8.5v7l6-3.5z" />
+              </svg>
+              <span>Watch on YouTube</span>
+            </a>
+          )}
         </div>
       </div>
       
@@ -117,12 +177,14 @@ export default function PlaylistPage({ playlistId }) {
               )}
             </div>
             <div className="video-details">
-              <h3 className="video-title">{video.name}</h3>
+              <div className="video-heading">
+                <h3 className="video-title">{video.name}</h3>
+                {video.publishedAt && (
+                  <p className="video-date">{formatDate(video.publishedAt)}</p>
+                )}
+              </div>
               {video.subTitle && (
                 <p className="video-subtitle">{video.subTitle}</p>
-              )}
-              {video.publishedAt && (
-                <p className="video-date">{formatDate(video.publishedAt)}</p>
               )}
             </div>
           </Link>

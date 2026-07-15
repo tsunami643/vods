@@ -62,14 +62,150 @@
 }
 
 .playlist-video-count {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.82em;
+}
+
+.playlist-duration {
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.95em;
   font-weight: 600;
 }
 
-.playlist-duration {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 0.82em;
+.playlist-youtube-link {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 7px 12px;
+  color: #fff;
+  background-color: #343b5c;
+  border: 1px solid rgba(220, 220, 255, 0.18);
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.playlist-youtube-link:hover {
+  background-color: #424b73;
+}
+
+.playlist-youtube-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.playlist-youtube-logo {
+  width: 1.15em;
+  height: 1.15em;
+  overflow: visible;
+}
+
+.playlist-youtube-logo rect {
+  fill: #f03;
+}
+
+.playlist-youtube-logo path {
+  fill: #fff;
+}
+
+.playlist-skeleton-block {
+  display: block;
+  flex-shrink: 0;
+  background: linear-gradient(
+    90deg,
+    #242a43 25%,
+    #343b5c 50%,
+    #242a43 75%
+  );
+  background-size: 200% 100%;
+  animation: playlist-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.playlist-skeleton-cover {
+  width: 120px;
+  height: 160px;
+  border-radius: 8px;
+}
+
+.playlist-skeleton-info {
+  width: min(55vw, 420px);
+}
+
+.playlist-skeleton-title {
+  width: 72%;
+  height: 1.8em;
+  border-radius: 0.35em;
+}
+
+.playlist-skeleton-count {
+  width: 88px;
+  height: 0.7em;
+  border-radius: 0.3em;
+}
+
+.playlist-skeleton-duration {
+  width: 140px;
+  height: 0.9em;
+  border-radius: 0.3em;
+}
+
+.playlist-video-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 106px;
+  padding: 8px;
+  background: #242a43;
+  border-radius: 8px;
+}
+
+.playlist-skeleton-index {
+  width: 20px;
+  height: 0.8em;
+  margin-inline: 4px;
+  border-radius: 0.25em;
+}
+
+.playlist-skeleton-thumbnail {
+  width: 160px;
+  height: 90px;
+  border-radius: 6px;
+}
+
+.playlist-skeleton-video-details {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-around;
+  min-width: 0;
+}
+
+.playlist-skeleton-video-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playlist-skeleton-video-title {
+  width: min(65%, 440px);
+  height: 0.95em;
+  border-radius: 0.3em;
+}
+
+.playlist-skeleton-video-subtitle {
+  width: min(82%, 560px);
+  height: 0.75em;
+  border-radius: 0.3em;
+}
+
+.playlist-skeleton-video-date {
+  width: 110px;
+  height: 0.7em;
+  border-radius: 0.3em;
 }
 
 .playlist-videos {
@@ -135,10 +271,17 @@ a.video-item {
 .video-details {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: space-around;
   min-width: 0;
   flex: 1;
-  gap: 4px;
+  align-self: stretch;
+}
+
+.video-heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
 }
 
 .video-title {
@@ -152,14 +295,13 @@ a.video-item {
 .video-subtitle {
   margin: 0;
   font-size: 0.85em;
-  color: rgba(255, 255, 255, 0.65);
-  font-style: italic;
+  opacity: 0.8;
 }
 
 .video-date {
   margin: 0;
   font-size: 0.85em;
-  color: rgba(255, 255, 255, 0.5);
+  opacity: 0.5;
 }
 
 @media (max-width: 600px) {
@@ -177,6 +319,21 @@ a.video-item {
     width: 80px;
   }
 
+  .playlist-skeleton-cover {
+    width: 80px;
+    height: 107px;
+  }
+
+  .playlist-skeleton-info {
+    flex: 1;
+    width: auto;
+  }
+
+  .playlist-skeleton-title {
+    width: min(85%, 240px);
+    height: 1.4em;
+  }
+
   .playlist-title {
     font-size: 1.4em;
   }
@@ -189,5 +346,23 @@ a.video-item {
   .video-index {
     display: none;
   }
+
+  .playlist-video-skeleton {
+    min-height: 84px;
+  }
+
+  .playlist-skeleton-index {
+    display: none;
+  }
+
+  .playlist-skeleton-thumbnail {
+    width: 120px;
+    height: 68px;
+  }
 }
+}
+
+@keyframes playlist-skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
 }

@@ -50,6 +50,7 @@ export default function useYouTubePlayer({
 }) {
   const playerRef = useRef(null);
   const pendingSeekRef = useRef(null);
+  const pendingPlaylistIndexRef = useRef(null);
   const lastProcessedTimeRef = useRef(0);
   const currentVideoIdRef = useRef(currentVideoId);
   const iframeIdRef = useRef(iframeId);
@@ -68,6 +69,7 @@ export default function useYouTubePlayer({
 
   useEffect(() => {
     iframeIdRef.current = iframeId;
+    pendingPlaylistIndexRef.current = null;
   }, [iframeId]);
 
   useEffect(() => {
@@ -156,7 +158,12 @@ export default function useYouTubePlayer({
                 }
                 pendingSeekRef.current = null;
               }
-              if (shouldPlayRef.current) player.playVideo?.();
+              if (pendingPlaylistIndexRef.current !== null) {
+                player.playVideoAt?.(pendingPlaylistIndexRef.current);
+                pendingPlaylistIndexRef.current = null;
+              } else if (shouldPlayRef.current) {
+                player.playVideo?.();
+              }
             } catch {}
 
             intervalId = setInterval(() => {
@@ -217,15 +224,34 @@ export default function useYouTubePlayer({
     pendingSeekRef.current = { iframeId: iframeIdRef.current, time };
   }, []);
 
-  const playVideoAt = useCallback((index) => {
+  const playVideo = useCallback(() => {
     try {
-      if (!playerRef.current?.playVideoAt) return false;
-      playerRef.current.playVideoAt(index);
+      if (!playerRef.current?.playVideo) return false;
+      playerRef.current.playVideo();
       return true;
     } catch {
       return false;
     }
   }, []);
 
-  return { getCurrentTime, playVideoAt, seekTo };
+  const playVideoAt = useCallback((index) => {
+    const nextVideo = playlistVideosRef.current[index];
+    if (!nextVideo) return false;
+
+    if (nextVideo.youtubeId) currentVideoIdRef.current = nextVideo.youtubeId;
+
+    try {
+      if (playerRef.current?.playVideoAt) {
+        playerRef.current.playVideoAt(index);
+        return true;
+      }
+    } catch {
+      return false;
+    }
+
+    pendingPlaylistIndexRef.current = index;
+    return true;
+  }, [playlistVideosRef]);
+
+  return { getCurrentTime, playVideo, playVideoAt, seekTo };
 }

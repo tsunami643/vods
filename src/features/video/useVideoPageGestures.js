@@ -3,6 +3,15 @@ import { useCallback, useRef } from 'react';
 const DOUBLE_TAP_DELAY = 300;
 const DOUBLE_TAP_DISTANCE = 30;
 const TAP_MOVE_THRESHOLD = 10;
+const INFO_GESTURE_CONTROL_SELECTOR = [
+  '.description-expander-container',
+  '.part-selector-container',
+  'a',
+  'button',
+  'input',
+  'select',
+  'textarea',
+].join(', ');
 
 function getTouchPosition(event) {
   const touch = event.changedTouches[0];
@@ -16,11 +25,13 @@ function isNearTap(first, second) {
 
 export default function useVideoPageGestures({
   isWideChat,
-  onHideVideoInfo,
+  onToggleVideoInfo,
   onWideChatChange,
 }) {
   const chatTouchStartRef = useRef({ x: 0, y: 0 });
   const chatLastTapRef = useRef({ time: 0, x: 0, y: 0 });
+  const headerTouchStartRef = useRef({ x: 0, y: 0 });
+  const headerLastTapRef = useRef({ time: 0, x: 0, y: 0 });
   const infoTouchStartRef = useRef({ x: 0, y: 0 });
   const infoLastTapRef = useRef({ time: 0, x: 0, y: 0 });
 
@@ -60,13 +71,66 @@ export default function useVideoPageGestures({
     }
   }, [isWideChat, onWideChatChange]);
 
+  const handleHeaderTouchStart = useCallback((event) => {
+    if (event.target.closest?.('.header-button, .settings-panel')) {
+      headerTouchStartRef.current = null;
+      headerLastTapRef.current = { time: 0, x: 0, y: 0 };
+      event.stopPropagation();
+      return;
+    }
+
+    headerTouchStartRef.current = getTouchPosition(event);
+  }, []);
+
+  const handleHeaderTouchEnd = useCallback((event) => {
+    if (event.target.closest?.('.header-button, .settings-panel')) {
+      headerLastTapRef.current = { time: 0, x: 0, y: 0 };
+      event.stopPropagation();
+      return;
+    }
+
+    const end = getTouchPosition(event);
+    const start = headerTouchStartRef.current;
+    if (!start) return;
+
+    const absoluteX = Math.abs(end.x - start.x);
+    const absoluteY = Math.abs(end.y - start.y);
+
+    if (absoluteX >= TAP_MOVE_THRESHOLD || absoluteY >= TAP_MOVE_THRESHOLD) return;
+
+    const now = Date.now();
+    const lastTap = headerLastTapRef.current;
+    if (now - lastTap.time < DOUBLE_TAP_DELAY && isNearTap(end, lastTap)) {
+      event.stopPropagation();
+      onToggleVideoInfo();
+      headerLastTapRef.current = { time: 0, x: 0, y: 0 };
+      return;
+    }
+
+    headerLastTapRef.current = { time: now, ...end };
+  }, [onToggleVideoInfo]);
+
   const handleInfoTouchStart = useCallback((event) => {
+    if (event.target.closest?.(INFO_GESTURE_CONTROL_SELECTOR)) {
+      infoTouchStartRef.current = null;
+      infoLastTapRef.current = { time: 0, x: 0, y: 0 };
+      return;
+    }
+
     infoTouchStartRef.current = getTouchPosition(event);
   }, []);
 
   const handleInfoTouchEnd = useCallback((event) => {
+    if (event.target.closest?.(INFO_GESTURE_CONTROL_SELECTOR)) {
+      infoTouchStartRef.current = null;
+      infoLastTapRef.current = { time: 0, x: 0, y: 0 };
+      return;
+    }
+
     const end = getTouchPosition(event);
     const start = infoTouchStartRef.current;
+    if (!start) return;
+
     const absoluteX = Math.abs(end.x - start.x);
     const absoluteY = Math.abs(end.y - start.y);
 
@@ -75,17 +139,19 @@ export default function useVideoPageGestures({
     const now = Date.now();
     const lastTap = infoLastTapRef.current;
     if (now - lastTap.time < DOUBLE_TAP_DELAY && isNearTap(end, lastTap)) {
-      onHideVideoInfo();
+      onToggleVideoInfo();
       infoLastTapRef.current = { time: 0, x: 0, y: 0 };
       return;
     }
 
     infoLastTapRef.current = { time: now, ...end };
-  }, [onHideVideoInfo]);
+  }, [onToggleVideoInfo]);
 
   return {
     handleChatTouchEnd,
     handleChatTouchStart,
+    handleHeaderTouchEnd,
+    handleHeaderTouchStart,
     handleInfoTouchEnd,
     handleInfoTouchStart,
   };

@@ -18,7 +18,6 @@ export default function ChatContainer({
   videoId, 
   youtubeVideoId,
   currentTime, 
-  isPlaying,
   isWideChat,
   onSeek,
   delayTime = 2,
@@ -26,8 +25,11 @@ export default function ChatContainer({
   onHideVideoInfoChange,
   onChatTouchEnd,
   onChatTouchStart,
+  onHeaderTouchEnd,
+  onHeaderTouchStart,
   hideVideoInfo = false,
-  theme = 'blue'
+  settingsSpinTrigger = 0,
+  theme = 'twitch'
 }) {
   const {
     closeSettings,
@@ -122,9 +124,12 @@ export default function ChatContainer({
     hideVideoInfo,
     isFullscreen,
     onHideVideoInfoChange,
+    onHeaderTouchEnd,
+    onHeaderTouchStart,
     onSettingsToggle: toggleSettings,
     onToggleFullscreen: toggleFullscreen,
     preferences: chatPreferences,
+    settingsSpinTrigger,
     settingsOpen,
   };
 

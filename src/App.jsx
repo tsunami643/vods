@@ -241,6 +241,10 @@ const App = () => {
   const playlistRandomPool = page === APP_PAGE.playlist
     ? catalogGames.filter((game) => game.playlistId === playlistId)
     : [];
+  const handleHeaderSearch = useCallback((value) => {
+    handleSearch(value);
+    if (page === APP_PAGE.playlist) navigate(routes.home);
+  }, [handleSearch, navigate, page]);
   const handleHeaderRandomVod = page === APP_PAGE.catalog
     ? handleRandomVod
     : page === APP_PAGE.playlist
@@ -274,9 +278,6 @@ const App = () => {
   const pageContent = selectingRandomFromVideo ? null : (
     page === APP_PAGE.video || preparingRandomVideo ? (
       <VideoPage
-        key={randomPlaybackGate
-          ? `random-video-${randomTransition.id}`
-          : `video-${renderedVideoId}`}
         initialTimeOverride={
           randomPlaybackGate ? randomTransition.targetStartTime : null
         }
@@ -285,7 +286,7 @@ const App = () => {
       />
     ) : (
       <CatalogShell
-        handleSearch={handleSearch}
+        handleSearch={handleHeaderSearch}
         onRandomVod={handleHeaderRandomVod}
         onRemoveTag={removeTag}
         randomVodDisabled={headerRandomVodDisabled}

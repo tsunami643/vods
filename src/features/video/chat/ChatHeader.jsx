@@ -27,9 +27,6 @@ export function useChatPreferences(initialTheme, onThemeChange) {
   const [showBadges, setShowBadges] = useState(() =>
     readBoolean('chatShowBadges', true)
   );
-  const [showBorders, setShowBorders] = useState(() =>
-    readBoolean('chatShowBorders', false)
-  );
   const [fontSize, setFontSize] = useState(() =>
     readNumber('chatFontSize', 14)
   );
@@ -42,10 +39,6 @@ export function useChatPreferences(initialTheme, onThemeChange) {
   useEffect(() => {
     localStorage.setItem('chatShowBadges', JSON.stringify(showBadges));
   }, [showBadges]);
-
-  useEffect(() => {
-    localStorage.setItem('chatShowBorders', JSON.stringify(showBorders));
-  }, [showBorders]);
 
   useEffect(() => {
     localStorage.setItem('chatFontSize', fontSize.toString());
@@ -85,12 +78,10 @@ export function useChatPreferences(initialTheme, onThemeChange) {
     setChatTheme,
     setFontSize,
     setShowBadges,
-    setShowBorders,
     setShowTimestamps,
     showBadges,
-    showBorders,
     showTimestamps,
-  }), [chatTheme, fontSize, showBadges, showBorders, showTimestamps]);
+  }), [chatTheme, fontSize, showBadges, showTimestamps]);
 
   return {
     closeSettings,
@@ -140,19 +131,21 @@ function ChatSettingsPanel({
   chatTheme,
   fontSize,
   hideVideoInfo,
+  open,
   setChatTheme,
   setFontSize,
   setShowBadges,
-  setShowBorders,
   setShowTimestamps,
   showBadges,
-  showBorders,
   showFullControls,
   showTimestamps,
   onHideVideoInfoChange,
 }) {
   return (
-    <div className="settings-panel">
+    <div
+      className={`settings-panel ${open ? 'settings-panel-open' : ''}`}
+      aria-hidden={!open}
+    >
       {showFullControls && (
         <>
           <ToggleSetting
@@ -164,11 +157,6 @@ function ChatSettingsPanel({
             checked={showBadges}
             label="Badges"
             onChange={setShowBadges}
-          />
-          <ToggleSetting
-            checked={showBorders}
-            label="Message Borders"
-            onChange={setShowBorders}
           />
           <div className="settings-divider" />
           <div className="settings-row">
@@ -197,8 +185,8 @@ function ChatSettingsPanel({
           value={chatTheme}
           onChange={(event) => setChatTheme(event.target.value)}
         >
-          <option value="blue">Blue</option>
           <option value="twitch">Twitch</option>
+          <option value="blue">Blue</option>
           <option value="oled">OLED</option>
         </select>
       </div>
@@ -215,28 +203,41 @@ function ChatSettingsPanel({
 function ChatHeader({
   hideVideoInfo,
   isFullscreen,
+  onHeaderTouchEnd,
+  onHeaderTouchStart,
   onHideVideoInfoChange,
   onSettingsToggle,
   onToggleFullscreen,
   preferences,
+  settingsSpinTrigger = 0,
   settingsOpen,
   showFullControls = true,
 }) {
+  const [settingsClickTrigger, setSettingsClickTrigger] = useState(0);
   const {
     chatTheme,
     fontSize,
     setChatTheme,
     setFontSize,
     setShowBadges,
-    setShowBorders,
     setShowTimestamps,
     showBadges,
-    showBorders,
     showTimestamps,
   } = preferences;
+  const settingsAnimationKey = `${settingsSpinTrigger}-${settingsClickTrigger}`;
+  const shouldAnimateSettings = settingsSpinTrigger > 0 || settingsClickTrigger > 0;
+
+  const handleSettingsClick = useCallback(() => {
+    setSettingsClickTrigger((trigger) => trigger + 1);
+    onSettingsToggle();
+  }, [onSettingsToggle]);
 
   return (
-    <div className="chat-header">
+    <div
+      className="chat-header"
+      onTouchEnd={onHeaderTouchEnd}
+      onTouchStart={onHeaderTouchStart}
+    >
       <div
         className={`header-buttons ${showFullControls ? '' : 'header-buttons-hidden'}`}
         aria-hidden={!showFullControls}
@@ -254,28 +255,30 @@ function ChatHeader({
 
       <span className="header-title">Archived Chat</span>
       <div className="header-buttons">
-        <button className="header-button" title="Settings" onClick={onSettingsToggle}>
-          <SettingsIcon />
+        <button className="header-button" title="Settings" onClick={handleSettingsClick}>
+          <span
+            key={settingsAnimationKey}
+            className={`settings-icon ${shouldAnimateSettings ? 'settings-icon-spinning' : ''}`}
+          >
+            <SettingsIcon />
+          </span>
         </button>
       </div>
 
-      {settingsOpen && (
-        <ChatSettingsPanel
-          chatTheme={chatTheme}
-          fontSize={fontSize}
-          hideVideoInfo={hideVideoInfo}
-          onHideVideoInfoChange={onHideVideoInfoChange}
-          setChatTheme={setChatTheme}
-          setFontSize={setFontSize}
-          setShowBadges={setShowBadges}
-          setShowBorders={setShowBorders}
-          setShowTimestamps={setShowTimestamps}
-          showBadges={showBadges}
-          showBorders={showBorders}
-          showFullControls={showFullControls}
-          showTimestamps={showTimestamps}
-        />
-      )}
+      <ChatSettingsPanel
+        chatTheme={chatTheme}
+        fontSize={fontSize}
+        hideVideoInfo={hideVideoInfo}
+        onHideVideoInfoChange={onHideVideoInfoChange}
+        open={settingsOpen}
+        setChatTheme={setChatTheme}
+        setFontSize={setFontSize}
+        setShowBadges={setShowBadges}
+        setShowTimestamps={setShowTimestamps}
+        showBadges={showBadges}
+        showFullControls={showFullControls}
+        showTimestamps={showTimestamps}
+      />
     </div>
   );
 }

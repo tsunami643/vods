@@ -28,8 +28,9 @@ export default function VideoPage({
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [hideVideoInfo, setHideVideoInfo] = useState(false);
   const [isWideChat, setIsWideChat] = useState(false);
+  const [settingsSpinTrigger, setSettingsSpinTrigger] = useState(0);
   const [pageTheme, setPageTheme] = useState(() => {
-    return localStorage.getItem('chatTheme') || 'blue';
+    return localStorage.getItem('chatTheme') || 'twitch';
   });
   const resetCurrentTime = useCallback(() => setCurrentTime(0), []);
   const {
@@ -73,6 +74,7 @@ export default function VideoPage({
   const closePartDropdown = useCallback(() => setShowPartDropdown(false), []);
   const {
     getCurrentTime: getPlayerCurrentTime,
+    playVideo,
     playVideoAt,
     seekTo,
   } = useYouTubePlayer({
@@ -103,32 +105,33 @@ export default function VideoPage({
       setShowPartDropdown(false);
     }
 
+    if (!isPlaying) playVideo();
     seekTo(time);
 
     currentTimeRef.current = time;
     setCurrentTime(time);
     if (updateUrl) updateUrlTime(time);
     savePlaybackState(time);
-  }, [seekTo, updateUrlTime, savePlaybackState]);
+  }, [isPlaying, playVideo, seekTo, updateUrlTime, savePlaybackState]);
 
-  const handlePartClick = (e, videoId, index) => {
-    e.preventDefault();
+  const handlePartSelect = useCallback((targetVideo, index) => {
+    if (!targetVideo) return;
+
     setShowPartDropdown(false);
     
     if (playlist?.videos?.length > 1 && playVideoAt(index)) {
       const newVideo = playlist.videos[index];
       if (newVideo) {
-        navigate(routes.video(videoId), { replace: true });
-        
         activatePlaylistVideo(newVideo);
         setCurrentTime(0);
         resetInitialTime();
         setShowDescription(false);
+        navigate(routes.video(targetVideo.youtubeId), { replace: true });
       }
     } else {
-      navigate(routes.video(videoId), { replace: true });
+      navigate(routes.video(targetVideo.youtubeId), { replace: true });
     }
-  };
+  }, [activatePlaylistVideo, navigate, playlist, playVideoAt, resetInitialTime]);
 
   useEffect(() => {
     if (!showPartDropdown) {
@@ -210,15 +213,20 @@ export default function VideoPage({
     setHideVideoInfo(hide);
   }, []);
 
-  const hideVideoInfoFromGesture = useCallback(() => setHideVideoInfo(true), []);
+  const toggleVideoInfoFromGesture = useCallback(() => {
+    setHideVideoInfo((hidden) => !hidden);
+    setSettingsSpinTrigger((trigger) => trigger + 1);
+  }, []);
   const {
     handleChatTouchEnd,
     handleChatTouchStart,
+    handleHeaderTouchEnd,
+    handleHeaderTouchStart,
     handleInfoTouchEnd,
     handleInfoTouchStart,
   } = useVideoPageGestures({
     isWideChat,
-    onHideVideoInfo: hideVideoInfoFromGesture,
+    onToggleVideoInfo: toggleVideoInfoFromGesture,
     onWideChatChange: setIsWideChat,
   });
 
@@ -228,7 +236,7 @@ export default function VideoPage({
   }, []);
 
   if (loading) return <VideoPageSkeleton theme={pageTheme} />;
-  if (!video) return <div className="video-page" style={{ color: '#fff', padding: 20 }}>{loadError || 'Video not found'}</div>;
+  if (!video) return <div className="video-page" data-theme={pageTheme} style={{ color: '#fff', padding: 20 }}>{loadError || 'Video not found'}</div>;
 
   return (
     <div className="video-page" data-theme={pageTheme}>
@@ -248,7 +256,7 @@ export default function VideoPage({
             hideVideoInfo={hideVideoInfo}
             onInfoTouchEnd={handleInfoTouchEnd}
             onInfoTouchStart={handleInfoTouchStart}
-            onPartClick={handlePartClick}
+            onPartSelect={handlePartSelect}
             onSeek={handleSeek}
             onToggleDescription={handleToggleDescription}
             onTogglePartDropdown={() => setShowPartDropdown(!showPartDropdown)}
@@ -263,11 +271,9 @@ export default function VideoPage({
         </div>
         
         <ChatContainer
-          key={video.id}
           videoId={video.id}
           youtubeVideoId={video.youtubeId}
           currentTime={currentTime}
-          isPlaying={isPlaying}
           isWideChat={isWideChat}
           onSeek={handleSeek}
           delayTime={3}
@@ -276,6 +282,9 @@ export default function VideoPage({
           hideVideoInfo={hideVideoInfo}
           onChatTouchEnd={handleChatTouchEnd}
           onChatTouchStart={handleChatTouchStart}
+          onHeaderTouchEnd={handleHeaderTouchEnd}
+          onHeaderTouchStart={handleHeaderTouchStart}
+          settingsSpinTrigger={settingsSpinTrigger}
           theme={pageTheme}
         />
       </div>

@@ -10,7 +10,7 @@ import {
   InputLabel,
   OutlinedInput,
 } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 const SearchBar = ({
   handleSearch,
@@ -30,9 +30,11 @@ const SearchBar = ({
     }
   };
 
-  useEffect(() => {
-    handleSearch(searchInput);
-  }, [searchInput, handleSearch]);
+  const handleInputChange = (event) => {
+    const value = event.target.value;
+    setSearchInput(value);
+    handleSearch(value);
+  };
 
   return (
     <Box className="catalog-header-controls">
@@ -65,7 +67,7 @@ const SearchBar = ({
           type="search"
           autoComplete="off"
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={handleInputChange}
           label="Search for games..."
           endAdornment={
             <InputAdornment position="end">

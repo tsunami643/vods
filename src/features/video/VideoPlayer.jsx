@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { routes } from '../../routes';
 import logo from '../../shared/logo.png';
@@ -15,6 +16,21 @@ function getPlayerSource(video, playlist, initialTime, autoplay) {
   }
 
   return `https://www.youtube.com/embed/${video.youtubeId}?enablejsapi=1&playsinline=1&rel=0&autoplay=${autoplay ? 1 : 0}&origin=${origin}${startParam}`;
+}
+
+function YouTubeIframe({ iframeId, iframeRef, source, title }) {
+  const [initialSource] = useState(source);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      id={`yt-player-${iframeId}`}
+      title={title}
+      src={initialSource}
+      allowFullScreen
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    />
+  );
 }
 
 export default function VideoPlayer({
@@ -39,14 +55,12 @@ export default function VideoPlayer({
       )}
 
       <div className="youtube-player-container">
-        <iframe
-          ref={iframeRef}
+        <YouTubeIframe
           key={iframeId}
-          id={`yt-player-${iframeId}`}
+          iframeId={iframeId}
+          iframeRef={iframeRef}
+          source={getPlayerSource(video, playlist, initialTime, autoplay)}
           title={video.name}
-          src={getPlayerSource(video, playlist, initialTime, autoplay)}
-          allowFullScreen
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         />
       </div>
     </>

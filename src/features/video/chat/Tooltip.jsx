@@ -7,6 +7,7 @@ export default function Tooltip({
   imageUrl = null,
   imageAlt = '',
   className = '',
+  showOnClick = true,
 }) {
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -125,7 +126,7 @@ export default function Tooltip({
       className={`tooltip-container ${className}`}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
-      onClick={handleClick}
+      onClick={showOnClick ? handleClick : undefined}
     >
       {children}
       {visible && (

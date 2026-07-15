@@ -1,15 +1,6 @@
-// This module works both in Node.js (backend) and Cloudflare Workers
-// Use fetch from node-fetch in Node.js, native fetch in Workers
-let fetch;
-if (typeof window === 'undefined' && typeof globalThis.fetch === 'undefined') {
-  // Node.js environment
-  fetch = require('node-fetch');
-} else {
-  // Browser or Workers environment with native fetch
-  fetch = globalThis.fetch;
-}
+// Node 20+ and Cloudflare Workers both provide the Fetch API globally.
 
-// CORS headers configuration  
+// CORS headers configuration
 const allowedOrigins = [
   'https://vods.tsunami.workers.dev',
   "http://localhost:3000"
@@ -71,4 +62,4 @@ module.exports = {
   corsHeaders,
   checkOrigin,
   allowedOrigins
-}; 
+};

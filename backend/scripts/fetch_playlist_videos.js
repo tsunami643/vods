@@ -8,7 +8,6 @@
  * Output: JSON array of ordered videos with key metadata.
  */
 
-const fetch = require('node-fetch');
 const pool = require('../db/connection');
 const config = require('../config');
 

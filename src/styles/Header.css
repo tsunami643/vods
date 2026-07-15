@@ -220,6 +220,7 @@
     justify-content: center;
     width: 42px;
     min-width: 42px;
+    margin-left: 4px;
     padding-inline: 0;
   }
 

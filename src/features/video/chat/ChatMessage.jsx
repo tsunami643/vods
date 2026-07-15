@@ -214,7 +214,6 @@ function ChatMessage({
   badgeList,
   showTimestamps,
   showBadges,
-  showBorder,
   onSeek,
   videoId,
   chatDelay = 0
@@ -230,20 +229,22 @@ function ChatMessage({
 
   const timestampUrl = videoId ? videoHref(videoId, formatTimeForUrl(message.time, chatDelay)) : '#';
 
-  const messageStyle = showBorder ? { borderBottom: '1px solid rgba(255,255,255,0.1)' } : {};
-
   return (
-    <div className="chat-message" style={messageStyle}>
+    <div className="chat-message">
       {showTimestamps && (
         <span className={`chat-timestamp ${getTimestampClass(message.time, chatDelay)}`}>
-          <a 
-            href={timestampUrl} 
-            onClick={handleTimestampClick} 
-            title="Jump to timestamp" 
-            className="timestamp-link"
+          <Tooltip
+            text="Jump to Timestamp"
+            showOnClick={false}
           >
-            {formatTimestamp(message.time, chatDelay)}
-          </a>
+            <a
+              href={timestampUrl}
+              onClick={handleTimestampClick}
+              className="timestamp-link"
+            >
+              {formatTimestamp(message.time, chatDelay)}
+            </a>
+          </Tooltip>
         </span>
       )}
       <span className="chat-data">

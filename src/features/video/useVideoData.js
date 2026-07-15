@@ -7,18 +7,20 @@ export default function useVideoData(videoId, onLoadStart) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const playlistVideosRef = useRef([]);
-  const skipNextLoadRef = useRef(false);
+  const cachedVideoIdRef = useRef(null);
 
   const activatePlaylistVideo = useCallback((nextVideo) => {
-    skipNextLoadRef.current = true;
+    cachedVideoIdRef.current = nextVideo.youtubeId;
+    setLoadError(null);
     setVideo(nextVideo);
   }, []);
 
   useEffect(() => {
-    if (skipNextLoadRef.current) {
-      skipNextLoadRef.current = false;
+    if (cachedVideoIdRef.current === videoId) {
+      cachedVideoIdRef.current = null;
       return;
     }
+    cachedVideoIdRef.current = null;
 
     const controller = new AbortController();
     let active = true;
