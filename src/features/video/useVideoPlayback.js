@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { formatTimeForUrl, parseTimeToSeconds } from './videoUtils';
 
 export default function useVideoPlayback({

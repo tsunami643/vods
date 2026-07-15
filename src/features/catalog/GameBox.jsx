@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { faYoutube } from "@fortawesome/free-brands-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink } from "react-router";
 import { memo } from "react";
 import { routes } from "../../routes";
 import "../../styles/GameBox.css";

@@ -1,6 +1,6 @@
 import Fade from '@mui/material/Fade';
 import Tooltip from '@mui/material/Tooltip';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { routes, videoHref } from '../../routes';
 import {
   formatDate,

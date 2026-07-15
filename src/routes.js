@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 const appBase = import.meta.env.BASE_URL.replace(/\/+$/, "");
 const pathSegment = (value) => encodeURIComponent(String(value));
