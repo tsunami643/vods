@@ -62,13 +62,27 @@ export default function useCatalog({ isHomePage }) {
     return results;
   }, [games, searchInput, tags]);
 
+  const availableTags = useMemo(() => {
+    const uniqueTags = new Set();
+
+    games.forEach((game) => {
+      game.tags?.forEach((tag) => {
+        if (tag) uniqueTags.add(tag);
+      });
+    });
+
+    return [...uniqueTags].sort((firstTag, secondTag) =>
+      firstTag.localeCompare(secondTag)
+    );
+  }, [games]);
+
   const handleSearch = useCallback((value) => {
     setSearchInput(value);
   }, []);
 
   const addTag = useCallback((tag) => {
     setTags((currentTags) => {
-      if (currentTags.includes(tag)) return currentTags;
+      if (currentTags.includes(tag) || currentTags.length >= 3) return currentTags;
       return [...currentTags, tag];
     });
   }, []);
@@ -78,12 +92,20 @@ export default function useCatalog({ isHomePage }) {
     setSearchKey((key) => key + 1);
   }, []);
 
+  const clearFilters = useCallback(() => {
+    setSearchInput("");
+    setTags([]);
+    setSearchKey((key) => key + 1);
+  }, []);
+
   const removeTag = useCallback((tag) => {
     setTags((currentTags) => currentTags.filter((currentTag) => currentTag !== tag));
   }, []);
 
   return {
     addTag,
+    availableTags,
+    clearFilters,
     clearSearch,
     error,
     filteredGames,

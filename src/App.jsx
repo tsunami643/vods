@@ -48,6 +48,8 @@ const App = () => {
   randomTransitionRef.current = randomTransition;
   const {
     addTag,
+    availableTags,
+    clearFilters,
     clearSearch,
     error: catalogError,
     filteredGames: searchResults,
@@ -286,7 +288,10 @@ const App = () => {
       />
     ) : (
       <CatalogShell
+        availableTags={availableTags}
         handleSearch={handleHeaderSearch}
+        onAddTag={addTag}
+        onClearFilters={clearFilters}
         onRandomVod={handleHeaderRandomVod}
         onRemoveTag={removeTag}
         randomVodDisabled={headerRandomVodDisabled}

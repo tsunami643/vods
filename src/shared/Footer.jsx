@@ -16,7 +16,7 @@ const Footer = () => {
   const mobile = useMediaQuery(theme.breakpoints.down("mobileCard"));
 
   return (
-    <footer style={{ textAlign: "center", padding: "32px 16px" }}>
+    <footer style={{ textAlign: "center", padding: "22px 16px" }}>
       <Typography sx={{ fontSize: mobile ? 14 : "1rem" }}>
       Visit the{" "}
         <Link

@@ -1,3 +1,7 @@
+html:has(.catalog-shell:not(.viewport-constrained)):not(.random-vod-facade-active) {
+  scrollbar-gutter: stable;
+}
+
 .catalog-shell {
   display: flex;
   flex-direction: column;
@@ -29,6 +33,11 @@
 .catalog-shell.viewport-constrained .catalog-header-app-bar,
 .catalog-shell.viewport-constrained footer {
   flex-shrink: 0;
+}
+
+.catalog-shell.viewport-constrained .catalog-header-app-bar {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .catalog-shell.viewport-constrained footer {
@@ -93,6 +102,7 @@
 }
 
 .catalog-search-form.MuiFormControl-root {
+  position: relative;
   flex: 1 1 280px;
   min-width: 0;
 }
@@ -122,14 +132,90 @@
   border-radius: 60px;
 }
 
+.catalog-search-input input[type="search"]::-webkit-search-cancel-button {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-left: 0.4rem;
+  background:
+    linear-gradient(45deg, transparent 43%, #c8d4ff 43% 57%, transparent 57%),
+    linear-gradient(-45deg, transparent 43%, #c8d4ff 43% 57%, transparent 57%);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: background-color 120ms ease, opacity 120ms ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.catalog-search-input input[type="search"]::-webkit-search-cancel-button:hover {
+  background-color: rgba(220, 220, 255, 0.2);
+  opacity: 1;
+}
+
+.catalog-search-input input[type="search"]::-webkit-search-cancel-button:active {
+  background-color: rgba(220, 220, 255, 0.3);
+}
+
 .catalog-search-tags {
   display: flex;
   margin-right: 8px;
   gap: 8px;
 }
 
+.catalog-search-tags-mobile {
+  display: none;
+}
+
 .catalog-search-icon {
   color: #c8d4ff;
+}
+
+.catalog-tag-suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: -8px;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 8px 10px;
+  color: #dcdcff;
+  background-color: #242a43;
+  border: 1px solid rgba(220, 220, 255, 0.24);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 45%);
+}
+
+.catalog-tag-suggestions .catalog-tag-suggestions-label {
+  flex-shrink: 0;
+  color: rgba(220, 220, 255, 0.65);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.catalog-tag-suggestion-strip {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.catalog-tag-suggestion-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.catalog-tag-suggestion.MuiChip-root {
+  flex-shrink: 0;
+}
+
+.catalog-tag-suggestion.MuiChip-root.highlighted {
+  background-color: rgba(220, 220, 255, 0.12);
 }
 
 .random-vod-header-button.MuiButton-root {
@@ -226,5 +312,33 @@
 
   .random-vod-header-button .random-vod-label {
     display: none;
+  }
+}
+
+@media (max-width: 479.95px) and (orientation: portrait) {
+  .catalog-header-toolbar.MuiToolbar-root {
+    align-items: flex-start;
+  }
+
+  .catalog-brand.MuiLink-root {
+    margin-top: 19px;
+  }
+
+  .catalog-header-controls {
+    align-items: flex-start;
+  }
+
+  .random-vod-header-button.MuiButton-root {
+    margin-top: 7px;
+  }
+
+  .catalog-search-tags-input {
+    display: none;
+  }
+
+  .catalog-search-tags-mobile {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 8px 0 0 -8px;
   }
 }

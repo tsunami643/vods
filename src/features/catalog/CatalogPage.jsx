@@ -30,6 +30,7 @@ function CatalogPage({
           flexWrap: "wrap",
           justifyContent: "center",
           alignContent: "flex-start",
+          flex: 1,
           minHeight: {
             xs: "calc(100vh - 384px)",
             mobileCard: "calc(100vh - 387px)",
