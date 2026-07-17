@@ -457,6 +457,9 @@
 }
 
 .chat-emote-container {
+  --emote-modifier-rotate: 0deg;
+  --emote-modifier-scale-x: 1;
+  --emote-modifier-scale-y: 1;
   position: relative;
   display: inline-block;
 }
@@ -472,9 +475,86 @@
   height: auto;
   font-size: 14px;
   max-height: 2em;
+  transform:
+    scaleX(var(--emote-modifier-scale-x))
+    scaleY(var(--emote-modifier-scale-y))
+    rotate(var(--emote-modifier-rotate));
   zoom: var(--chat-font-scale, 1);
   vertical-align: middle;
   pointer-events: none;
+}
+
+.bttv-emote-modifier-wide .emote-img {
+  width: 8em;
+  height: 2em;
+  object-fit: fill;
+}
+
+.bttv-emote-modifier-flip-horizontal {
+  --emote-modifier-scale-x: -1;
+}
+
+.bttv-emote-modifier-flip-vertical {
+  --emote-modifier-scale-y: -1;
+}
+
+.bttv-emote-modifier-rotate-left {
+  --emote-modifier-rotate: -90deg;
+}
+
+.bttv-emote-modifier-rotate-right {
+  --emote-modifier-rotate: 90deg;
+}
+
+.bttv-emote-modifier-rotate-left .emote-img,
+.bttv-emote-modifier-rotate-right .emote-img {
+  max-width: 2em;
+}
+
+.bttv-emote-modifier-zero-space {
+  margin-left: -0.286em;
+}
+
+.bttv-emote-modifier-cursed .emote-img {
+  filter: grayscale(1) brightness(0.7) contrast(2.5);
+}
+
+.bttv-emote-modifier-party .emote-img {
+  animation: bttv-emote-modifier-party 1.5s linear infinite;
+}
+
+.bttv-emote-modifier-shake .emote-img {
+  animation: bttv-emote-modifier-shake 500ms step-start infinite;
+}
+
+.bttv-emote-modifier-party.bttv-emote-modifier-shake .emote-img {
+  animation:
+    bttv-emote-modifier-party 1.5s linear infinite,
+    bttv-emote-modifier-shake 500ms step-start infinite;
+}
+
+@keyframes bttv-emote-modifier-party {
+  from {
+    filter: sepia(0.5) hue-rotate(0deg) saturate(2.5);
+  }
+
+  to {
+    filter: sepia(0.5) hue-rotate(360deg) saturate(2.5);
+  }
+}
+
+@keyframes bttv-emote-modifier-shake {
+  0% { translate: 0 0.071em; }
+  10% { translate: 0.143em 0; }
+  20% { translate: 0.071em -0.143em; }
+  30% { translate: -0.143em 0.071em; }
+  40% { translate: 0 -0.071em; }
+  50% { translate: 0.143em 0.143em; }
+  60% { translate: -0.071em -0.071em; }
+  70% { translate: -0.143em 0.143em; }
+  80% { translate: 0.143em 0.071em; }
+  90% { translate: -0.071em -0.143em; }
+  100% { translate: 0.071em 0; }
 }
 
 .cheermote {

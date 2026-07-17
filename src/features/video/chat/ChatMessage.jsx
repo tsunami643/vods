@@ -12,6 +12,106 @@ import { videoHref } from '../../../routes';
 
 const CHEERMOTE_REGEX = createCheermoteRegex();
 const CHAT_TOKEN_REGEX = /@\S+|\b((?:https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s<]*)/gi;
+const EMOTE_MODIFIERS = {
+  'w!': 'bttv-emote-modifier-wide',
+  'h!': 'bttv-emote-modifier-flip-horizontal',
+  'v!': 'bttv-emote-modifier-flip-vertical',
+  'z!': 'bttv-emote-modifier-zero-space',
+  'c!': 'bttv-emote-modifier-cursed',
+  'l!': 'bttv-emote-modifier-rotate-left',
+  'r!': 'bttv-emote-modifier-rotate-right',
+  'p!': 'bttv-emote-modifier-party',
+  's!': 'bttv-emote-modifier-shake',
+  ffzW: 'bttv-emote-modifier-wide',
+  ffzX: 'bttv-emote-modifier-flip-horizontal',
+  ffzY: 'bttv-emote-modifier-flip-vertical',
+  ffzCursed: 'bttv-emote-modifier-cursed',
+};
+const PREFIX_EMOTE_MODIFIERS = new Set(
+  Object.keys(EMOTE_MODIFIERS).filter((modifier) => modifier.endsWith('!'))
+);
+const SUFFIX_EMOTE_MODIFIERS = new Set(
+  Object.keys(EMOTE_MODIFIERS).filter((modifier) => !modifier.endsWith('!'))
+);
+const ALL_EMOTE_MODIFIERS = new Set(Object.keys(EMOTE_MODIFIERS));
+
+function splitTextParts(parts) {
+  return parts.flatMap((part) => {
+    if (part.type !== 'text') return part;
+
+    return part.content
+      .split(/(\s+)/u)
+      .filter(Boolean)
+      .map((content) => ({ type: 'text', content }));
+  });
+}
+
+function isWhitespacePart(part) {
+  return part?.type === 'text' && /^\s+$/u.test(part.content);
+}
+
+function getModifierText(part) {
+  if (part?.type === 'text') return part.content;
+  if (part?.type === 'emote') return part.emote?.text;
+  return null;
+}
+
+function applyEmoteModifiers(parts) {
+  const tokens = splitTextParts(parts);
+  const removedIndexes = new Set();
+
+  tokens.forEach((token, emoteIndex) => {
+    if (removedIndexes.has(emoteIndex) || token.type !== 'emote'
+      || ALL_EMOTE_MODIFIERS.has(token.emote?.text)) {
+      return;
+    }
+
+    const modifierClasses = [];
+    let cursor = emoteIndex - 1;
+
+    while (cursor >= 0) {
+      const whitespaceIndexes = [];
+      while (cursor >= 0 && isWhitespacePart(tokens[cursor])) {
+        whitespaceIndexes.push(cursor);
+        cursor -= 1;
+      }
+
+      const modifier = getModifierText(tokens[cursor]);
+      if (whitespaceIndexes.length === 0 || !PREFIX_EMOTE_MODIFIERS.has(modifier)) break;
+
+      removedIndexes.add(cursor);
+      whitespaceIndexes.forEach((index) => removedIndexes.add(index));
+      modifierClasses.unshift(EMOTE_MODIFIERS[modifier]);
+      cursor -= 1;
+    }
+
+    cursor = emoteIndex + 1;
+    while (cursor < tokens.length) {
+      const whitespaceIndexes = [];
+      while (cursor < tokens.length && isWhitespacePart(tokens[cursor])) {
+        whitespaceIndexes.push(cursor);
+        cursor += 1;
+      }
+
+      const modifier = getModifierText(tokens[cursor]);
+      if (whitespaceIndexes.length === 0 || !SUFFIX_EMOTE_MODIFIERS.has(modifier)) break;
+
+      removedIndexes.add(cursor);
+      whitespaceIndexes.forEach((index) => removedIndexes.add(index));
+      modifierClasses.push(EMOTE_MODIFIERS[modifier]);
+      cursor += 1;
+    }
+
+    if (modifierClasses.length > 0) {
+      tokens[emoteIndex] = {
+        ...token,
+        modifierClasses: [...new Set(modifierClasses)],
+      };
+    }
+  });
+
+  return tokens.filter((_, index) => !removedIndexes.has(index));
+}
 
 function findMentionRanges(message) {
   const characters = Array.from(message);
@@ -108,7 +208,7 @@ function parseMessageContent(message, emotes, emoteList) {
     }
   }
 
-  return parts;
+  return applyEmoteModifiers(parts);
 }
 
 function parseTextContent(text) {
@@ -308,7 +408,7 @@ function ChatMessage({
                 )}
                 imageUrl={highResUrl}
                 imageAlt={emote.text}
-                className="chat-emote-container"
+                className={`chat-emote-container ${part.modifierClasses?.join(' ') || ''}`.trim()}
               >
                 <span className="emote">
                   <img
