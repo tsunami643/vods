@@ -80,7 +80,7 @@ const StreamInfo = ({ dateCompleted, playlistId, firstVideo, interactive, stream
           color: "text.secondary",
         }}
       >
-        STREAMS
+        PARTS
       </Typography>
       <Typography
         sx={{
