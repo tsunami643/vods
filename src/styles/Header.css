@@ -260,21 +260,6 @@ html:has(.catalog-shell:not(.viewport-constrained)):not(.random-vod-facade-activ
   text-align: center;
 }
 
-.random-vod-header-button.finding .random-vod-icon,
-.random-vod-header-button:hover .random-vod-icon {
-  animation: random-vod-shuffle 500ms ease-in-out infinite;
-}
-
-@keyframes random-vod-shuffle {
-  0%,
-  100% {
-    transform: translateX(-2px) rotate(-8deg);
-  }
-  50% {
-    transform: translateX(2px) rotate(8deg) scale(1.12);
-  }
-}
-
 @keyframes random-vod-finding {
   0%,
   100% {
