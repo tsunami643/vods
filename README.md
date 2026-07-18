@@ -1,4 +1,4 @@
-# Tsunami's Twitch VODs
+# Tsunami's Twitch VoDs
 
 A searchable archive of Tsunami's Twitch streams, hosted as YouTube videos with synchronized chat replay.
 
@@ -53,4 +53,6 @@ npm run manage-keys       # Manage backend API keys
 
 ## License
 
-[MIT](LICENSE)
+This project is distributed under the [PolyForm Noncommercial License 1.0.0](LICENSE), subject to the retained MIT license for inherited frontend portions.
+
+The frontend was originally based on [Should I Play This?](https://github.com/GamerKingFaiz/shouldiplay) by Faiz-ur Rahman. Those original portions remain available under their original MIT license, which is reproduced alongside the current project license in [`LICENSE`](LICENSE).
